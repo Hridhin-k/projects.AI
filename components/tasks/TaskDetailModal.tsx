@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Task } from "@/lib/db/schema";
+import type { Task, User } from "@/lib/db/schema";
 import { updateTaskAction, deleteTask } from "@/lib/db/actions";
 import { useNotification } from "@/components/ui/useNotification";
 import Notification from "@/components/ui/Notification";
@@ -12,6 +12,7 @@ interface TaskDetailModalProps {
   assigneeName?: string;
   creatorName?: string;
   members?: Array<{ id: string; name: string }>;
+  currentUser?: User;
   onClose: () => void;
   onUpdate: () => void;
 }
@@ -30,16 +31,16 @@ interface Comment {
 
 const STATUS_OPTIONS = [
   { value: "TO_DO", label: "To Do", color: "text-gray-400" },
-  { value: "IN_PROGRESS", label: "In Progress", color: "text-purple-400" },
-  { value: "DONE", label: "Done", color: "text-teal-400" },
-  { value: "BLOCKED", label: "Blocked", color: "text-red-400" },
+  { value: "IN_PROGRESS", label: "In Progress", color: "text-purple-600" },
+  { value: "DONE", label: "Done", color: "text-teal-600" },
+  { value: "BLOCKED", label: "Blocked", color: "text-red-700" },
 ] as const;
 
 const PRIORITY_OPTIONS = [
-  { value: "LOW", label: "Low", color: "bg-blue-600" },
+  { value: "LOW", label: "Low", color: "bg-slate-700" },
   { value: "MEDIUM", label: "Medium", color: "bg-gray-600" },
-  { value: "HIGH", label: "High", color: "bg-orange-600" },
-  { value: "URGENT", label: "Urgent", color: "bg-red-600" },
+  { value: "HIGH", label: "High", color: "bg-amber-700" },
+  { value: "URGENT", label: "Urgent", color: "bg-red-800" },
 ] as const;
 
 export default function TaskDetailModal({
@@ -47,6 +48,7 @@ export default function TaskDetailModal({
   assigneeName,
   creatorName,
   members = [],
+  currentUser: currentUserProp,
   onClose,
   onUpdate,
 }: TaskDetailModalProps) {
@@ -68,46 +70,42 @@ export default function TaskDetailModal({
   const [canComment, setCanComment] = useState(false);
   const { notification, showNotification, clearNotification } = useNotification();
 
-  // Fetch current user and check permissions
+  const applyPermissions = (user: User) => {
+    const isAdminOrOwner = user.role === "ADMIN" || user.role === "OWNER";
+    const isManager = user.role === "MANAGER";
+    setCanEdit(isAdminOrOwner || isManager);
+    setCanDelete(isAdminOrOwner || (isManager && task.createdById === user.id));
+    setCanComment(
+      isAdminOrOwner ||
+        isManager ||
+        (user.role === "EMPLOYEE" && task.assigneeId === user.id)
+    );
+  };
+
   useEffect(() => {
+    if (currentUserProp) {
+      setCurrentUser(currentUserProp);
+      applyPermissions(currentUserProp);
+      return;
+    }
+
     const fetchUser = async () => {
       try {
-        const response = await fetch('/api/user');
+        const response = await fetch("/api/user");
         if (response.ok) {
           const user = await response.json();
           setCurrentUser(user);
-          
-          // Check permissions
-          const isAdminOrOwner = user.role === 'ADMIN' || user.role === 'OWNER';
-          const isManager = user.role === 'MANAGER';
-          const isEmployee = user.role === 'EMPLOYEE';
-          
-          // Can edit: Admin/Owner (any task), Manager (tasks assigned to members or created by them)
-          // Employees CANNOT edit tasks - they can only change status
-          setCanEdit(
-            isAdminOrOwner ||
-            (isManager && (task.assigneeId === null || true)) // Will be validated server-side
-          );
-          
-          // Can delete: Admin/Owner (any task), Manager (tasks they created), Employee (none)
-          setCanDelete(
-            isAdminOrOwner ||
-            (isManager && task.createdById === user.id)
-          );
-          
-          // Can comment: Admin/Owner/Manager (any task), Employee (their own tasks)
-          setCanComment(
-            isAdminOrOwner ||
-            isManager ||
-            (isEmployee && task.assigneeId === user.id)
-          );
+          applyPermissions(user);
         }
       } catch (error) {
-        console.error('Error fetching user:', error);
+        console.error("Error fetching user:", error);
       }
     };
-    
     fetchUser();
+  }, [currentUserProp, task.assigneeId, task.createdById]);
+
+  // Load comments
+  useEffect(() => {
     loadComments();
   }, [task.id]);
 
@@ -192,8 +190,8 @@ export default function TaskDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-fade-in">
-      <div className="relative w-full h-full sm:h-auto sm:max-w-2xl sm:mx-4 bg-gray-900 border-t sm:border border-purple-500/30 rounded-t-xl sm:rounded-xl shadow-2xl max-h-[100vh] sm:max-h-[90vh] overflow-y-auto flex flex-col animate-fade-in-scale">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 lg:p-6 animate-fade-in">
+      <div className="relative w-full h-full sm:h-auto sm:max-w-2xl lg:max-w-3xl sm:mx-4 bg-gray-900 border-t sm:border border-purple-500/30 rounded-t-xl sm:rounded-xl shadow-2xl max-h-[100vh] sm:max-h-[90vh] overflow-y-auto flex flex-col animate-fade-in-scale">
         {/* Notification */}
         {notification && (
           <div className="px-4 sm:px-6 pt-4 sm:pt-6">
@@ -207,14 +205,22 @@ export default function TaskDetailModal({
 
         {/* Header */}
         <div className="sticky top-0 bg-gray-900 border-b border-purple-500/20 p-4 sm:p-6 flex items-center justify-between gap-2 flex-shrink-0">
-          <h2 className="text-xl sm:text-2xl font-semibold text-white truncate">Task Details</h2>
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-purple-800 to-teal-800 flex items-center justify-center text-gray-200 text-xl sm:text-2xl font-bold flex-shrink-0 shadow-lg">
+              📋
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl sm:text-2xl font-bold text-white truncate">Task Details</h2>
+              <p className="text-xs text-gray-400 truncate">View and manage task information</p>
+            </div>
+          </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {!isEditing && (
               <>
                 {canEdit && (
                   <button
                     onClick={() => setIsEditing(true)}
-                    className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-all duration-200 hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 active:translate-y-0"
+                    className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-purple-800 hover:bg-purple-900 rounded-lg text-gray-200 transition-all duration-200 hover:shadow-lg hover:shadow-purple-800/10 hover:-translate-y-0.5 active:translate-y-0"
                   >
                     <span className="hidden sm:inline">Edit</span>
                     <span className="sm:hidden">✏️</span>
@@ -223,7 +229,7 @@ export default function TaskDetailModal({
                 {canDelete && (
                   <button
                     onClick={() => setShowDeleteConfirm(true)}
-                    className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-red-600 hover:bg-red-700 rounded-lg text-white transition-all duration-200 hover:shadow-lg hover:shadow-red-500/30 hover:-translate-y-0.5 active:translate-y-0"
+                    className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-red-900 hover:bg-red-950 rounded-lg text-gray-200 transition-all duration-200 hover:shadow-lg hover:shadow-red-900/10 hover:-translate-y-0.5 active:translate-y-0"
                   >
                     <span className="hidden sm:inline">Delete</span>
                     <span className="sm:hidden">🗑️</span>
@@ -233,7 +239,7 @@ export default function TaskDetailModal({
             )}
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors p-1"
+              className="text-gray-400 hover:text-gray-200 transition-colors p-1"
               aria-label="Close"
             >
               <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -253,10 +259,10 @@ export default function TaskDetailModal({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-800 border border-purple-500/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-200 focus:border-purple-500/50"
+                className="w-full px-4 py-2 bg-gray-800 border border-purple-800/15 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-800/30 transition-all duration-200 focus:border-purple-800/25"
               />
             ) : (
-              <h3 className="text-xl font-semibold text-white">{task.title}</h3>
+              <h3 className="text-xl font-semibold text-gray-200">{task.title}</h3>
             )}
           </div>
 
@@ -312,7 +318,7 @@ export default function TaskDetailModal({
                   ))}
                 </select>
               ) : (
-                <div className={`px-4 py-2 rounded-lg ${STATUS_OPTIONS.find(s => s.value === status)?.color || "text-gray-400"}`}>
+                <div className={`px-4 py-2 rounded-lg ${STATUS_OPTIONS.find(s => s.value === status)?.color || "text-gray-400"} text-gray-200`}>
                   {STATUS_OPTIONS.find(s => s.value === status)?.label || status}
                 </div>
               )}
@@ -333,7 +339,7 @@ export default function TaskDetailModal({
                   ))}
                 </select>
               ) : (
-                <span className={`inline-block px-3 py-1 rounded-full text-white text-sm ${
+                <span className={`inline-block px-3 py-1 rounded-full text-gray-200 text-sm ${
                   PRIORITY_OPTIONS.find(p => p.value === priority)?.color || "bg-gray-600"
                 }`}>
                   {PRIORITY_OPTIONS.find(p => p.value === priority)?.label || priority}
@@ -390,7 +396,7 @@ export default function TaskDetailModal({
 
           {/* Comments Section */}
           <div className="pt-4 border-t border-purple-500/20">
-            <h3 className="text-lg font-semibold text-white mb-4">Comments</h3>
+            <h3 className="text-lg font-semibold text-gray-200 mb-4">Comments</h3>
             
             {/* Comments List */}
             <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
@@ -401,11 +407,11 @@ export default function TaskDetailModal({
                   <div key={comment.id} className="bg-gray-800/50 border border-purple-500/20 rounded-lg p-3">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-teal-500 flex items-center justify-center text-white text-xs font-bold">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-800 to-teal-800 flex items-center justify-center text-gray-200 text-xs font-bold">
                           {comment.user.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-white">{comment.user.name}</p>
+                          <p className="text-sm font-medium text-gray-200">{comment.user.name}</p>
                           <p className="text-xs text-gray-400">
                             {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
                           </p>
@@ -431,7 +437,7 @@ export default function TaskDetailModal({
                 <button
                   onClick={handleAddComment}
                   disabled={!newComment.trim() || isAddingComment}
-                  className="px-4 py-2 text-sm font-medium bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 active:translate-y-0"
+                  className="px-4 py-2 text-sm font-medium bg-purple-800 hover:bg-purple-900 rounded-lg text-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-purple-800/10 hover:-translate-y-0.5 active:translate-y-0"
                 >
                   {isAddingComment ? "Adding..." : "Add Comment"}
                 </button>
@@ -465,7 +471,7 @@ export default function TaskDetailModal({
               <button
                 onClick={handleSave}
                 disabled={isSaving || !title.trim()}
-                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-all duration-200 disabled:opacity-50 hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 active:translate-y-0"
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-200 bg-purple-800 rounded-lg hover:bg-purple-900 transition-all duration-200 disabled:opacity-50 hover:shadow-lg hover:shadow-purple-800/10 hover:-translate-y-0.5 active:translate-y-0"
               >
                 {isSaving ? "Saving..." : "Save Changes"}
               </button>
@@ -478,7 +484,7 @@ export default function TaskDetailModal({
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80">
           <div className="bg-gray-900 border border-red-500/30 rounded-xl p-6 max-w-md">
-            <h3 className="text-xl font-semibold text-white mb-2">Delete Task?</h3>
+            <h3 className="text-xl font-semibold text-gray-200 mb-2">Delete Task?</h3>
             <p className="text-gray-400 mb-4">This action cannot be undone. Are you sure you want to delete this task?</p>
             <div className="flex gap-3">
               <button
@@ -489,7 +495,7 @@ export default function TaskDetailModal({
               </button>
               <button
                 onClick={handleDelete}
-                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-800 rounded-lg hover:bg-red-900 transition-colors"
               >
                 Delete
               </button>

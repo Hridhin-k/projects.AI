@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createTask } from "@/lib/db/actions";
 import { fetchMembers } from "@/lib/db/actions";
+import { fetchProjects } from "@/lib/db/project-actions";
 import type { AIResponse } from "@/app/api/ai/task-assistant/route";
 import TaskConfirmation from "./TaskConfirmation";
 import type { User } from "@/lib/db/schema";
@@ -14,11 +15,15 @@ interface Message {
   content: string;
 }
 
-export default function AIChatBox() {
+interface AIChatBoxProps {
+  projectId?: string;
+}
+
+export default function AIChatBox({ projectId }: AIChatBoxProps = {} as AIChatBoxProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Hello! I'm Aura, your Project Manager Assistant. How can I help you today? You can type your message or use the microphone button for voice input.",
+      content: "Hello! I'm your Projects.AI assistant. I can see your projects, tasks, and team — ask me things like \"what projects do we have?\" or \"who's working on what?\" You can also ask me to create a task.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -27,6 +32,7 @@ export default function AIChatBox() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [confirmationTask, setConfirmationTask] = useState<AIResponse["proposedTask"] | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([]);
   const [audioSupported, setAudioSupported] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -38,6 +44,9 @@ export default function AIChatBox() {
   useEffect(() => {
     // Load users on mount
     fetchMembers().then(setUsers);
+    fetchProjects().then((list) =>
+      setProjects(list.map((p) => ({ id: p.id, name: p.name })))
+    );
 
     // Check if audio features are supported
     const hasSpeechRecognition = typeof window !== "undefined" && 
@@ -208,8 +217,9 @@ export default function AIChatBox() {
     if (!input.trim() || isLoading) return;
 
     const userMessage = input.trim();
+    const conversation = [...messages, { role: "user" as const, content: userMessage }];
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setMessages(conversation);
     setIsLoading(true);
 
     try {
@@ -217,13 +227,17 @@ export default function AIChatBox() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: userMessage,
-          currentUsers: users,
+          messages: conversation,
+          projectId,
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to get AI response");
+        const body = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          message?: string;
+        };
+        throw new Error(body.message || body.error || "Failed to get AI response");
       }
 
       const aiResponse: AIResponse = await response.json();
@@ -242,7 +256,10 @@ export default function AIChatBox() {
       }
     } catch (error) {
       console.error("Error:", error);
-      const errorMessage = "I apologize, but I encountered an error. Please try again.";
+      const errorMessage =
+        error instanceof Error && error.message
+          ? error.message
+          : "I apologize, but I encountered an error. Please try again.";
       setMessages((prev) => [...prev, { role: "assistant", content: errorMessage }]);
     } finally {
       setIsLoading(false);
@@ -258,6 +275,7 @@ export default function AIChatBox() {
         description: confirmationTask.description,
         assigneeId: confirmationTask.assigneeId,
         dueDate: confirmationTask.dueDate,
+        projectId: confirmationTask.projectId,
       });
 
       setMessages((prev) => [
@@ -299,9 +317,13 @@ export default function AIChatBox() {
     ? users.find((u) => u.id === confirmationTask.assigneeId)?.name
     : undefined;
 
+  const projectName = confirmationTask
+    ? projects.find((p) => p.id === confirmationTask.projectId)?.name
+    : undefined;
+
   return (
     <>
-      <div className="flex flex-col h-full bg-gray-900 border border-purple-500/20 rounded-xl shadow-lg">
+      <div className="flex flex-col h-full bg-gray-900">
         {/* Notification */}
         {notification && (
           <div className="px-3 sm:px-4 pt-3 sm:pt-4">
@@ -313,28 +335,24 @@ export default function AIChatBox() {
           </div>
         )}
 
-        {/* Header */}
-        <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-purple-500/20 bg-gray-800/50 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base sm:text-lg font-semibold text-white">Aura Assistant</h2>
-              <p className="text-xs sm:text-sm text-gray-400">AI-Powered Task Management</p>
-            </div>
-            <button
-              onClick={() => setShowHelp(!showHelp)}
-              className="p-1.5 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-700"
-              aria-label="Toggle help"
-              title="Keyboard shortcuts and tips"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </button>
-          </div>
-          
-          {/* Help Panel */}
-          {showHelp && (
-            <div className="mt-3 p-3 bg-gray-800/80 border border-purple-500/30 rounded-lg text-xs text-gray-300 space-y-2">
+        {/* Help Button and Panel */}
+        <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-purple-700/20 bg-gray-800/50 flex-shrink-0 flex items-center justify-end">
+          <button
+            onClick={() => setShowHelp(!showHelp)}
+            className="p-1.5 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-700 min-w-[44px] min-h-[44px] flex items-center justify-center"
+            aria-label="Toggle help"
+            title="Keyboard shortcuts and tips"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Help Panel */}
+        {showHelp && (
+          <div className="px-3 sm:px-4 py-3 border-b border-purple-700/20 bg-gray-800/80 flex-shrink-0">
+            <div className="p-3 bg-gray-800/80 border border-purple-700/30 rounded-lg text-xs text-gray-300 space-y-2">
               <div className="font-semibold text-white mb-2">Quick Tips:</div>
               <div>• Press <kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-white">Ctrl/Cmd + /</kbd> to focus input</div>
               <div>• Press <kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-white">Esc</kbd> to stop listening/speaking</div>
@@ -344,8 +362,8 @@ export default function AIChatBox() {
                 <div className="text-yellow-400 mt-2">⚠️ Voice features require Chrome, Edge, or Safari</div>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 min-h-0">
@@ -360,8 +378,8 @@ export default function AIChatBox() {
               <div
                 className={`max-w-[85%] sm:max-w-[80%] rounded-lg px-3 sm:px-4 py-2 transition-all duration-300 ${
                   msg.role === "user"
-                    ? "bg-purple-600 text-white hover:bg-purple-700"
-                    : "bg-gray-800 text-gray-100 border border-purple-500/20 hover:border-purple-500/40"
+                    ? "bg-purple-800/80 text-gray-200 hover:bg-purple-900/80"
+                    : "bg-gray-800 text-gray-300 border border-purple-800/15 hover:border-purple-800/25"
                 }`}
               >
                 <p className="text-xs sm:text-sm whitespace-pre-wrap break-words">{msg.content}</p>
@@ -370,11 +388,11 @@ export default function AIChatBox() {
           ))}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-gray-800 border border-purple-500/20 rounded-lg px-4 py-2">
+              <div className="bg-gray-800 border border-purple-700/20 rounded-lg px-4 py-2">
                 <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" />
-                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }} />
+                  <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" />
+                  <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                  <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }} />
                 </div>
               </div>
             </div>
@@ -383,7 +401,7 @@ export default function AIChatBox() {
         </div>
 
         {/* Input */}
-        <form onSubmit={handleSubmit} className="p-3 sm:p-4 border-t border-purple-500/20 flex-shrink-0">
+        <form onSubmit={handleSubmit} className="p-3 sm:p-4 border-t border-purple-700/20 flex-shrink-0">
           {/* Listening indicator */}
           {isListening && (
             <div className="mb-2 flex items-center gap-2 text-xs text-red-400 animate-pulse">
@@ -407,7 +425,7 @@ export default function AIChatBox() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={isListening ? "Listening..." : "Type your message or use voice input..."}
-              className="flex-1 px-3 sm:px-4 py-2 bg-gray-800 border border-purple-500/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm disabled:opacity-50 transition-all duration-200 focus:border-purple-500/50"
+              className="flex-1 px-3 sm:px-4 py-2 bg-gray-800 border border-purple-700/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-700/50 text-sm disabled:opacity-50 transition-all duration-200 focus:border-purple-700/50"
               disabled={isLoading || isListening}
               aria-label="Message input"
               aria-describedby="input-help"
@@ -423,8 +441,8 @@ export default function AIChatBox() {
               disabled={!audioSupported || isLoading}
               className={`px-2 sm:px-3 py-2 rounded-lg border transition-all flex-shrink-0 relative ${
                 isListening
-                  ? "bg-red-600 border-red-500 text-white animate-pulse shadow-lg shadow-red-500/50"
-                  : "bg-gray-800 border-purple-500/20 text-gray-300 hover:bg-gray-700 hover:border-purple-500/40 disabled:opacity-30 disabled:cursor-not-allowed"
+                  ? "bg-red-800 border-red-700 text-white animate-pulse shadow-lg shadow-red-800/30"
+                  : "bg-gray-800 border-purple-700/20 text-gray-300 hover:bg-gray-700 hover:border-purple-700/40 disabled:opacity-30 disabled:cursor-not-allowed"
               }`}
               aria-label={isListening ? "Stop listening" : "Start voice input"}
               title={isListening ? "Stop listening (or press Esc)" : audioSupported ? "Start voice input" : "Voice input not supported"}
@@ -459,7 +477,7 @@ export default function AIChatBox() {
               className={`px-2 sm:px-3 py-2 rounded-lg border transition-all flex-shrink-0 ${
                 isSpeaking
                   ? "bg-teal-600 border-teal-500 text-white animate-pulse shadow-lg shadow-teal-500/50"
-                  : "bg-gray-800 border-purple-500/20 text-gray-300 hover:bg-gray-700 hover:border-purple-500/40 disabled:opacity-30 disabled:cursor-not-allowed"
+                  : "bg-gray-800 border-purple-700/20 text-gray-300 hover:bg-gray-700 hover:border-purple-700/40 disabled:opacity-30 disabled:cursor-not-allowed"
               }`}
               aria-label={isSpeaking ? "Stop speaking" : "Read last message"}
               title={isSpeaking ? "Stop speaking (or press Esc)" : audioSupported ? "Read last message" : "Text-to-speech not supported"}
@@ -473,7 +491,7 @@ export default function AIChatBox() {
             <button
               type="submit"
               disabled={!input.trim() || isLoading || isListening}
-              className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/50 hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 active:translate-y-0"
+              className="px-3 sm:px-4 py-2 bg-purple-700 text-white rounded-lg hover:bg-purple-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-700/50 hover:shadow-lg hover:shadow-purple-700/20 hover:-translate-y-0.5 active:translate-y-0"
               aria-label="Send message"
             >
               <span className="hidden sm:inline">Send</span>
@@ -489,6 +507,7 @@ export default function AIChatBox() {
           onConfirm={handleConfirmTask}
           onCancel={handleCancelTask}
           assigneeName={assigneeName}
+          projectName={projectName}
         />
       )}
     </>

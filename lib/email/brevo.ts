@@ -34,8 +34,8 @@ export async function sendTaskAssignmentEmail(
   }
 
   try {
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.BREVO_FROM_EMAIL || 'noreply@auratask.com';
-    const senderName = process.env.BREVO_SENDER_NAME || 'AuraTask';
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.BREVO_FROM_EMAIL || 'noreply@Projects.AI';
+    const senderName = process.env.BREVO_SENDER_NAME || 'Projects.AI';
 
     const sendSmtpEmail: SendSmtpEmail = {
       sender: { email: senderEmail, name: senderName },
@@ -57,7 +57,7 @@ export async function sendTaskAssignmentEmail(
           <body>
             <div class="container">
               <div class="header">
-                <h1>AuraTask</h1>
+                <h1>Projects.AI</h1>
                 <p>You have been assigned a new task</p>
               </div>
               <div class="content">
@@ -71,7 +71,7 @@ export async function sendTaskAssignmentEmail(
                   ${params.status ? `<p><strong>Status:</strong> ${params.status}</p>` : ''}
                   <p><strong>Assigned by:</strong> ${params.assignerName}${params.assignerEmail ? ` (${params.assignerEmail})` : ''}</p>
                 </div>
-                <p>Please log in to your AuraTask dashboard to view and manage this task.</p>
+                <p>Please log in to your Projects.AI dashboard to view and manage this task.</p>
                 <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard" class="button">View Task</a>
               </div>
             </div>
@@ -87,7 +87,7 @@ export async function sendTaskAssignmentEmail(
         Description: ${params.taskDescription || 'No description provided.'}
         Due Date: ${params.dueDate}
         
-        Please log in to your AuraTask dashboard to view and manage this task.
+        Please log in to your Projects.AI dashboard to view and manage this task.
       `,
     };
 
@@ -123,8 +123,8 @@ export async function sendTaskProgressEmail(
   }
 
   try {
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.BREVO_FROM_EMAIL || 'noreply@auratask.com';
-    const senderName = process.env.BREVO_SENDER_NAME || 'AuraTask';
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.BREVO_FROM_EMAIL || 'noreply@Projects.AI';
+    const senderName = process.env.BREVO_SENDER_NAME || 'Projects.AI';
 
     const sendSmtpEmail: SendSmtpEmail = {
       sender: { email: senderEmail, name: senderName },
@@ -149,7 +149,7 @@ export async function sendTaskProgressEmail(
           <body>
             <div class="container">
               <div class="header">
-                <h1>AuraTask</h1>
+                <h1>Projects.AI</h1>
                 <p>Task Progress Update</p>
               </div>
               <div class="content">
@@ -161,7 +161,7 @@ export async function sendTaskProgressEmail(
                   <p><strong>New Status:</strong> <span class="status-badge status-${params.status.toLowerCase().replace('_', '-')}">${params.status}</span></p>
                   <p><strong>Update:</strong> ${params.progressUpdate}</p>
                 </div>
-                <p>Please log in to your AuraTask dashboard to view the updated task.</p>
+                <p>Please log in to your Projects.AI dashboard to view the updated task.</p>
                 <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard" style="display: inline-block; padding: 12px 24px; background: #8B5CF6; color: white; text-decoration: none; border-radius: 6px; margin-top: 15px;">View Task</a>
               </div>
             </div>
@@ -200,13 +200,13 @@ export async function sendInviteEmail(
   }
 
   try {
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.BREVO_FROM_EMAIL || 'noreply@auratask.com';
-    const senderName = process.env.BREVO_SENDER_NAME || 'AuraTask';
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.BREVO_FROM_EMAIL || 'noreply@Projects.AI';
+    const senderName = process.env.BREVO_SENDER_NAME || 'Projects.AI';
 
     const sendSmtpEmail: SendSmtpEmail = {
       sender: { email: senderEmail, name: senderName },
       to: [{ email: params.to, name: params.to }],
-      subject: `You've been invited to join ${params.organizationName} on AuraTask`,
+      subject: `You've been invited to join ${params.organizationName} on Projects.AI`,
       htmlContent: `
         <!DOCTYPE html>
         <html>
@@ -226,8 +226,8 @@ export async function sendInviteEmail(
               </div>
               <div class="content">
                 <p>Hello,</p>
-                <p><strong>${params.inviterName}</strong> has invited you to join <strong>${params.organizationName}</strong> on AuraTask as a <strong>${params.role}</strong>.</p>
-                <p>AuraTask is an AI-powered task management system that helps teams stay organized and productive.</p>
+                <p><strong>${params.inviterName}</strong> has invited you to join <strong>${params.organizationName}</strong> on Projects.AI as a <strong>${params.role}</strong>.</p>
+                <p>Projects.AI is an AI-powered task management system that helps teams stay organized and productive.</p>
                 <p>Click the button below to accept the invitation and create your account:</p>
                 <a href="${params.inviteLink}" class="button">Accept Invitation</a>
                 <p style="margin-top: 20px; font-size: 12px; color: #666;">This invitation link will expire in 7 days.</p>
@@ -263,13 +263,13 @@ export async function sendWelcomeEmail(
   }
 
   try {
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.BREVO_FROM_EMAIL || 'noreply@auratask.com';
-    const senderName = process.env.BREVO_SENDER_NAME || 'AuraTask';
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.BREVO_FROM_EMAIL || 'noreply@Projects.AI';
+    const senderName = process.env.BREVO_SENDER_NAME || 'Projects.AI';
 
     const sendSmtpEmail: SendSmtpEmail = {
       sender: { email: senderEmail, name: senderName },
       to: [{ email: to, name: toName }],
-      subject: `Welcome to ${organizationName} on AuraTask`,
+      subject: `Welcome to ${organizationName} on Projects.AI`,
       htmlContent: `
         <!DOCTYPE html>
         <html>
@@ -284,12 +284,12 @@ export async function sendWelcomeEmail(
           <body>
             <div class="container">
               <div class="header">
-                <h1>Welcome to AuraTask!</h1>
+                <h1>Welcome to Projects.AI!</h1>
               </div>
               <div class="content">
                 <p>Hello ${toName},</p>
-                <p>You have been added to <strong>${organizationName}</strong> on AuraTask.</p>
-                <p>AuraTask is an AI-powered task management system that helps teams stay organized and productive.</p>
+                <p>You have been added to <strong>${organizationName}</strong> on Projects.AI.</p>
+                <p>Projects.AI is an AI-powered task management system that helps teams stay organized and productive.</p>
                 <p>Get started by logging in to your dashboard and exploring your tasks.</p>
                 <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard" style="display: inline-block; padding: 12px 24px; background: #8B5CF6; color: white; text-decoration: none; border-radius: 6px; margin-top: 15px;">Go to Dashboard</a>
               </div>

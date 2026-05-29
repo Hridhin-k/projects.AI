@@ -29,9 +29,9 @@ export default function Notification({ message, type = "success", onClose, durat
   };
 
   const bgColor = {
-    success: "bg-teal-900/30 border-teal-500/50 text-teal-300",
-    error: "bg-red-900/30 border-red-500/50 text-red-300",
-    info: "bg-purple-900/30 border-purple-500/50 text-purple-300",
+    success: "bg-teal-900/30 border-teal-700/50 text-teal-200",
+    error: "bg-red-900/30 border-red-800/50 text-red-200",
+    info: "bg-purple-900/30 border-purple-700/50 text-purple-200",
   }[type];
 
   const icon = {

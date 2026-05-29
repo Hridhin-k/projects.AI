@@ -27,11 +27,18 @@
   --foreground: #ededed;
 }
 
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+body {
+  background: #171725;
+  color: #f3f4f6;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* Futuristic scrollbar */
@@ -171,6 +178,19 @@ body {
   }
 }
 
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
 }
@@ -203,24 +223,85 @@ body {
   animation: bounce-in 0.5s ease-out;
 }
 
-/* Smooth transitions */
-* {
-  transition-property: color, background-color, border-color, transform, opacity, box-shadow;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
+/* Focus visible for accessibility */
+*:focus-visible {
+  outline: 2px solid rgba(139, 92, 246, 0.6);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
-/* Enhanced transitions for interactive elements */
-button, a, input, select, textarea {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+/* Better selection */
+::selection {
+  background-color: rgba(139, 92, 246, 0.3);
+  color: white;
 }
 
-button:hover, a:hover {
-  transform: translateY(-1px);
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
 }
 
-button:active, a:active {
-  transform: translateY(0);
+/* Better form elements */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Loading spinner */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Transitions on interactive elements only (avoid breaking layout/flex) */
+a,
+button,
+input,
+select,
+textarea {
+  transition-property: color, background-color, border-color, opacity, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+/* Touch-friendly minimum sizes for mobile */
+@media (max-width: 640px) {
+  button, a, input, select {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Improved container spacing */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
 }
 
 /* Screen reader only - for accessibility */

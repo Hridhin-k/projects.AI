@@ -36,7 +36,7 @@ export async function sendInviteEmail(params: InviteEmailParams): Promise<void> 
 
     const sendSmtpEmail: SendSmtpEmail = {
       to: [{ email: params.to, name: params.toName }],
-      subject: `You've been invited to join ${params.organizationName} on AuraTask`,
+      subject: `You've been invited to join ${params.organizationName} on Projects.AI`,
       htmlContent: `
         <!DOCTYPE html>
         <html>
@@ -53,12 +53,12 @@ export async function sendInviteEmail(params: InviteEmailParams): Promise<void> 
           <body>
             <div class="container">
               <div class="header">
-                <h1>AuraTask</h1>
+                <h1>Projects.AI</h1>
                 <p>You've been invited!</p>
               </div>
               <div class="content">
                 <p>Hello ${params.toName},</p>
-                <p><strong>${params.invitedBy}</strong> has invited you to join <strong>${params.organizationName}</strong> on AuraTask.</p>
+                <p><strong>${params.invitedBy}</strong> has invited you to join <strong>${params.organizationName}</strong> on Projects.AI.</p>
                 <p>Your role will be: <span class="role-badge">${roleLabel}</span></p>
                 <p>Click the button below to accept the invitation and create your account:</p>
                 <a href="${params.inviteLink}" class="button">Accept Invitation</a>
@@ -76,7 +76,7 @@ export async function sendInviteEmail(params: InviteEmailParams): Promise<void> 
       textContent: `
         Hello ${params.toName},
         
-        ${params.invitedBy} has invited you to join ${params.organizationName} on AuraTask.
+        ${params.invitedBy} has invited you to join ${params.organizationName} on Projects.AI.
         Your role will be: ${roleLabel}
         
         Accept the invitation by visiting: ${params.inviteLink}

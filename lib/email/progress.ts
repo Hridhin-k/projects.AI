@@ -75,7 +75,7 @@ export async function sendTaskProgressEmail(params: TaskProgressEmailParams): Pr
                   <p><strong>New Status:</strong> <span class="status-badge status-${params.newStatus.toLowerCase().replace('_', '-')}">${params.newStatus}</span></p>
                   ${params.completionPercentage !== undefined ? `<p><strong>Progress:</strong> ${params.completionPercentage}%</p>` : ''}
                 </div>
-                <p>You can view the task details in your AuraTask dashboard.</p>
+                <p>You can view the task details in your Projects.AI dashboard.</p>
                 <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard" class="button">View Dashboard</a>
               </div>
             </div>

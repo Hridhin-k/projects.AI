@@ -5,6 +5,8 @@ import { createInvite } from "@/lib/db/actions";
 import { useNotification } from "@/components/ui/useNotification";
 import Notification from "@/components/ui/Notification";
 
+type InviteRole = "ADMIN" | "MANAGER" | "EMPLOYEE";
+
 interface InviteMemberProps {
   userRole: string;
   onInviteSent: () => void;
@@ -13,12 +15,12 @@ interface InviteMemberProps {
 export default function InviteMember({ userRole, onInviteSent }: InviteMemberProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"MANAGER" | "EMPLOYEE">("EMPLOYEE");
+  const [role, setRole] = useState<InviteRole>("EMPLOYEE");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { notification, showNotification, clearNotification } = useNotification();
 
-  const canInviteManagers = userRole === "OWNER" || userRole === "ADMIN";
-  const canInvite = canInviteManagers || userRole === "MANAGER";
+  const canInvite = userRole === "OWNER" || userRole === "ADMIN";
+  const canInviteAdmins = userRole === "OWNER";
 
   if (!canInvite) {
     return null;
@@ -48,7 +50,7 @@ export default function InviteMember({ userRole, onInviteSent }: InviteMemberPro
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="px-3 sm:px-4 py-1.5 sm:py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white text-xs sm:text-sm font-medium transition-colors whitespace-nowrap"
+        className="px-3 sm:px-4 py-1.5 sm:py-2 bg-purple-800 hover:bg-purple-900 rounded-lg text-gray-200 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap"
       >
         <span className="hidden sm:inline">Invite Member</span>
         <span className="sm:hidden">Invite</span>
@@ -58,7 +60,6 @@ export default function InviteMember({ userRole, onInviteSent }: InviteMemberPro
 
   return (
     <>
-      {/* Notification */}
       {notification && (
         <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[60] w-full max-w-md px-4">
           <Notification
@@ -74,12 +75,17 @@ export default function InviteMember({ userRole, onInviteSent }: InviteMemberPro
         onClick={() => setIsOpen(false)}
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
-        <div className="bg-gray-900 border border-purple-500/30 rounded-xl shadow-2xl p-6 max-w-md w-full animate-fade-in-scale">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold text-white">Invite Team Member</h3>
+        <div className="bg-gray-900 border border-purple-800/20 rounded-xl shadow-2xl p-5 sm:p-6 lg:p-8 max-w-md w-full animate-fade-in-scale max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-5 sm:mb-6">
+            <div>
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-200">Invite Team Member</h3>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">
+                Send an invitation to join your organization
+              </p>
+            </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-gray-400 hover:text-gray-200 transition-colors"
               aria-label="Close"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,50 +94,52 @@ export default function InviteMember({ userRole, onInviteSent }: InviteMemberPro
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Email *</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Email address *</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="colleague@example.com"
                 required
-                className="w-full px-4 py-2 bg-gray-800 border border-purple-500/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                className="w-full px-4 py-2.5 bg-gray-800 border border-purple-500/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 min-h-[44px]"
                 autoFocus
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Role *</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Role *</label>
               <select
                 value={role}
-                onChange={(e) => setRole(e.target.value as "MANAGER" | "EMPLOYEE")}
-                className="w-full px-4 py-2 bg-gray-800 border border-purple-500/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                disabled={!canInviteManagers && role === "MANAGER"}
+                onChange={(e) => setRole(e.target.value as InviteRole)}
+                className="w-full px-4 py-2.5 bg-gray-800 border border-purple-800/15 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-800/30 min-h-[44px] cursor-pointer"
               >
                 <option value="EMPLOYEE">Employee</option>
-                {canInviteManagers && <option value="MANAGER">Manager</option>}
+                <option value="MANAGER">Manager</option>
+                {canInviteAdmins && <option value="ADMIN">Admin</option>}
               </select>
-              {!canInviteManagers && (
-                <p className="text-xs text-gray-500 mt-1">Only Admins can invite Managers</p>
+              {canInviteAdmins && (
+                <p className="text-xs text-gray-500 mt-2">
+                  Admins can invite managers and employees. Only you (owner) can invite other admins.
+                </p>
               )}
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="flex-1 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors"
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-300 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 min-h-[44px]"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting || !email.trim()}
-                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-200 bg-gradient-to-r from-purple-800 to-purple-900 hover:from-purple-900 hover:to-purple-950 rounded-lg disabled:opacity-50 min-h-[44px]"
               >
-                {isSubmitting ? "Sending..." : "Send Invite"}
+                {isSubmitting ? "Sending…" : "Send invite"}
               </button>
             </div>
           </form>
@@ -140,4 +148,3 @@ export default function InviteMember({ userRole, onInviteSent }: InviteMemberPro
     </>
   );
 }
-

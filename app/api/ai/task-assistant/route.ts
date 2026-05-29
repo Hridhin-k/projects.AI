@@ -1,9 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
-import { fetchMembers } from "@/lib/db/actions";
+import { GEMINI_MODEL } from "@/lib/ai/constants";
+import { buildSystemInstruction, buildWorkspaceContext } from "@/lib/ai/build-workspace-context";
+import { getCurrentUser } from "@/lib/auth/session";
 import type { User } from "@/lib/db/schema";
+import { fetchMembers } from "@/lib/db/actions";
 
-// Initialize Gemini API (will be initialized in route handler to check for key)
 let genAI: GoogleGenerativeAI | null = null;
 
 export interface AIResponse {
@@ -13,9 +15,19 @@ export interface AIResponse {
     title: string;
     description: string;
     assigneeId: string;
+    projectId: string;
     dueDate: string;
     status: "TO_DO";
   };
+}
+
+type ChatMessage = { role: "user" | "assistant"; content: string };
+
+function toGeminiHistory(messages: ChatMessage[]) {
+  return messages.slice(0, -1).map((m) => ({
+    role: m.role === "assistant" ? ("model" as const) : ("user" as const),
+    parts: [{ text: m.content }],
+  }));
 }
 
 export async function POST(request: NextRequest) {
@@ -28,154 +40,138 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { prompt, currentUsers } = body;
-
-    if (!prompt) {
-      return NextResponse.json(
-        { error: "Prompt is required" },
-        { status: 400 }
-      );
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Fetch current members with workload data
-    const members = await fetchMembers();
-    const usersList = currentUsers || members;
+    const body = await request.json();
+    const { prompt, messages, projectId } = body as {
+      prompt?: string;
+      messages?: ChatMessage[];
+      projectId?: string;
+    };
 
-    // Fetch all tasks for context (AI needs full database access)
-    const { fetchTasks } = await import('@/lib/db/actions');
-    const allTasks = await fetchTasks();
+    const conversation: ChatMessage[] =
+      messages?.length && messages[messages.length - 1]?.role === "user"
+        ? messages
+        : prompt
+          ? [...(messages ?? []), { role: "user", content: prompt }]
+          : [];
 
-    // Build system instruction
-    const systemInstruction = `You are Aura, an intelligent and diligent Project Manager Assistant.
+    const latestUserMessage = conversation[conversation.length - 1]?.content?.trim();
+    if (!latestUserMessage) {
+      return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+    }
 
-CRITICAL: You MUST respond ONLY with valid JSON. Do not include any text before or after the JSON object. No explanations, no conversational text outside the JSON.
+    const [workspaceContext, members] = await Promise.all([
+      buildWorkspaceContext(projectId),
+      fetchMembers(),
+    ]);
 
-Your goal is to extract task details (title, description, assignee, dueDate) from user conversations and achieve workload balance.
+    const systemInstruction = buildSystemInstruction(workspaceContext);
 
-WORKLOAD BALANCING RULE: If the user does not specify an assignee, compare the complexity of the task (inferred from the prompt) against the members' tasksCount. Suggest the least busy employee in your conversationReply.
-
-Available members and their current workload:
-${usersList.map((u: User) => `- ${u.name} (ID: ${u.id}): ${u.tasksCount} active tasks`).join("\n")}
-
-Current tasks in the system (for context):
-${allTasks.slice(0, 10).map((t: any) => `- "${t.title}" (${t.status}) - Assigned to: ${usersList.find((u: User) => u.id === t.assigneeId)?.name || 'Unassigned'}`).join("\n")}
-${allTasks.length > 10 ? `... and ${allTasks.length - 10} more tasks` : ''}
-
-You MUST respond with ONLY a valid JSON object matching this exact schema (no markdown, no code blocks, just pure JSON):
-{
-  "action": "LOG_TASK" | "CONVERSATION" | "EDIT_TASK",
-  "conversationReply": "string - The text to display/speak to the user",
-  "proposedTask": {
-    "title": "string",
-    "description": "string",
-    "assigneeId": "string - must match one of the provided user IDs",
-    "dueDate": "string - flexible text field (e.g., '2025-02-15', 'by end of Q4', 'next Monday')",
-    "status": "TO_DO"
-  }
-}
-
-Rules:
-- If the user wants to create/log a task, set action to "LOG_TASK" and provide proposedTask
-- If the user is just chatting, set action to "CONVERSATION" and omit proposedTask
-- If the user wants to edit a task, set action to "EDIT_TASK"
-- Always provide a helpful, conversational reply in conversationReply
-- If no assignee is specified, choose the member with the lowest tasksCount
-- dueDate can be flexible: dates, events, or seasons (e.g., "by end of Q4", "next week")
-- REMEMBER: Output ONLY JSON, nothing else. Start with { and end with }`;
-
-    // Initialize Gemini API
     if (!genAI) {
       genAI = new GoogleGenerativeAI(apiKey);
     }
 
-    // Get the model
-    // Note: Update model name to "gemini-2.5-flash-preview-09-2025" when available
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
+      model: GEMINI_MODEL,
       systemInstruction,
     });
 
-    // Generate response - try with JSON mode if supported
+    const history = toGeminiHistory(conversation);
+
     let result;
     try {
-      // Try with JSON response format (if supported by the model)
       result = await model.generateContent({
-        contents: prompt,
+        contents: [
+          ...history,
+          { role: "user", parts: [{ text: latestUserMessage }] },
+        ],
         generationConfig: {
           responseMimeType: "application/json",
         },
       });
-    } catch (jsonModeError) {
-      // Fallback to regular generation if JSON mode not supported
-      console.log("JSON mode not supported, using regular generation");
-      result = await model.generateContent(prompt);
+    } catch {
+      result = await model.generateContent({
+        contents: [
+          ...history,
+          { role: "user", parts: [{ text: latestUserMessage }] },
+        ],
+      });
     }
-    const response = await result.response;
-    const text = response.text();
 
-    // Extract JSON from response (handle various formats)
-    let jsonText = text.trim();
-    
-    // Remove markdown code blocks if present
-    if (jsonText.includes("```json")) {
-      const jsonMatch = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
-      if (jsonMatch) {
-        jsonText = jsonMatch[1].trim();
-      }
-    } else if (jsonText.includes("```")) {
-      const codeMatch = jsonText.match(/```\s*([\s\S]*?)\s*```/);
-      if (codeMatch) {
-        jsonText = codeMatch[1].trim();
-      }
+    const text = result.response.text().trim();
+    let jsonText = text;
+
+    if (jsonText.includes("```")) {
+      const match = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (match) jsonText = match[1].trim();
     }
-    
-    // Try to extract JSON object if it's embedded in text
     if (!jsonText.startsWith("{")) {
-      const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        jsonText = jsonMatch[0];
-      }
-    }
-    
-    // If still not valid JSON, try to find the JSON part
-    if (!jsonText.startsWith("{")) {
-      // Look for JSON object anywhere in the text
-      const jsonStart = jsonText.indexOf("{");
-      const jsonEnd = jsonText.lastIndexOf("}");
-      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-        jsonText = jsonText.substring(jsonStart, jsonEnd + 1);
-      }
+      const match = jsonText.match(/\{[\s\S]*\}/);
+      if (match) jsonText = match[0];
     }
 
     let aiResponse: AIResponse;
     try {
       aiResponse = JSON.parse(jsonText);
-    } catch (parseError) {
-      // If JSON parsing fails, return a fallback response
+    } catch {
       console.error("Failed to parse AI response as JSON:", jsonText);
-      console.error("Parse error:", parseError);
-      
-      // Return a conversation response as fallback
       aiResponse = {
         action: "CONVERSATION",
-        conversationReply: text || "I apologize, but I'm having trouble processing that request. Could you please rephrase it?",
+        conversationReply:
+          text ||
+          "I'm having trouble formatting that answer. Could you ask again?",
       };
     }
 
-    // Validate assigneeId exists
     if (aiResponse.proposedTask?.assigneeId) {
-      const assigneeExists = usersList.some(
-        (u: User) => u.id === aiResponse.proposedTask!.assigneeId
+      const assigneeExists = members.some(
+        (m: User) => m.id === aiResponse.proposedTask!.assigneeId
       );
-      if (!assigneeExists) {
-        // Auto-correct to least busy member
-        const leastBusy = usersList.reduce((prev: User, curr: User) =>
+      if (!assigneeExists && members.length > 0) {
+        const leastBusy = members.reduce((prev, curr) =>
           prev.tasksCount < curr.tasksCount ? prev : curr
         );
         aiResponse.proposedTask.assigneeId = leastBusy.id;
         aiResponse.conversationReply += ` I've assigned this to ${leastBusy.name} as they have the lightest workload.`;
       }
+    }
+
+    if (aiResponse.action === "LOG_TASK" && aiResponse.proposedTask) {
+      const { fetchProjects } = await import("@/lib/db/project-actions");
+      const projects = await fetchProjects();
+      let resolvedProjectId = aiResponse.proposedTask.projectId || projectId;
+
+      if (resolvedProjectId && !projects.some((p) => p.id === resolvedProjectId)) {
+        resolvedProjectId = undefined;
+      }
+      if (!resolvedProjectId && projects.length === 1) {
+        resolvedProjectId = projects[0].id;
+      }
+      if (!resolvedProjectId && projectId && projects.some((p) => p.id === projectId)) {
+        resolvedProjectId = projectId;
+      }
+
+      if (!resolvedProjectId) {
+        aiResponse = {
+          action: "CONVERSATION",
+          conversationReply:
+            projects.length === 0
+              ? "Create a project first — every task must belong to a project."
+              : "Which project should this task go under? " +
+                projects.map((p) => p.name).join(", "),
+        };
+      } else {
+        aiResponse.proposedTask.projectId = resolvedProjectId;
+      }
+    }
+
+    if (!aiResponse.conversationReply?.trim()) {
+      aiResponse.conversationReply =
+        "I processed your request but couldn't form a reply. Please try again.";
     }
 
     return NextResponse.json(aiResponse);
@@ -190,4 +186,3 @@ Rules:
     );
   }
 }
-

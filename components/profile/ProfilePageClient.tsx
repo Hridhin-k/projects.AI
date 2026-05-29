@@ -52,9 +52,9 @@ export default function ProfilePageClient({ user: initialUser }: ProfilePageClie
   };
 
   const roleColors: Record<string, string> = {
-    OWNER: 'bg-purple-600',
-    ADMIN: 'bg-purple-500',
-    MANAGER: 'bg-teal-500',
+    OWNER: 'bg-purple-700',
+    ADMIN: 'bg-purple-600',
+    MANAGER: 'bg-teal-700',
     EMPLOYEE: 'bg-gray-600',
   };
 
@@ -72,14 +72,14 @@ export default function ProfilePageClient({ user: initialUser }: ProfilePageClie
       )}
 
       <div className="mb-6 animate-slide-in-left">
-        <h2 className="text-xl sm:text-2xl font-semibold text-white">My Profile</h2>
+        <h2 className="text-xl sm:text-2xl font-semibold text-gray-200">My Profile</h2>
         <p className="text-xs sm:text-sm text-gray-400 mt-1">Manage your profile information</p>
       </div>
 
-      <div className="bg-gray-900 border border-purple-500/20 rounded-xl p-4 sm:p-6 space-y-6 animate-fade-in-scale transition-all duration-300">
+      <div className="bg-gray-900 border border-purple-500/20 rounded-xl p-4 sm:p-6 lg:p-8 space-y-6 animate-fade-in-scale transition-all duration-300">
         {/* Profile Header */}
         <div className="flex items-center gap-4 pb-6 border-b border-purple-500/20">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-purple-500 to-teal-500 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-purple-800 to-teal-800 flex items-center justify-center text-gray-200 text-2xl sm:text-3xl font-bold">
             {user.name.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1">
@@ -89,14 +89,14 @@ export default function ProfilePageClient({ user: initialUser }: ProfilePageClie
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-2 bg-gray-800 border border-purple-500/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                  className="w-full px-4 py-2 bg-gray-800 border border-purple-800/15 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-800/30"
                   placeholder="Your name"
                 />
                 <div className="flex gap-2">
                   <button
                     onClick={handleSave}
                     disabled={isSaving || !name.trim()}
-                    className="px-4 py-2 text-sm font-medium bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-colors disabled:opacity-50"
+                    className="px-4 py-2 text-sm font-medium bg-purple-800 hover:bg-purple-900 rounded-lg text-gray-200 transition-colors disabled:opacity-50"
                   >
                     {isSaving ? "Saving..." : "Save"}
                   </button>
@@ -105,7 +105,7 @@ export default function ProfilePageClient({ user: initialUser }: ProfilePageClie
                       setIsEditing(false);
                       setName(user.name);
                     }}
-                    className="px-4 py-2 text-sm font-medium bg-gray-800 border border-gray-700 rounded-lg text-white hover:bg-gray-700 transition-colors"
+                    className="px-4 py-2 text-sm font-medium bg-gray-800 border border-gray-700 rounded-lg text-gray-200 hover:bg-gray-700 transition-colors"
                   >
                     Cancel
                   </button>
@@ -113,10 +113,10 @@ export default function ProfilePageClient({ user: initialUser }: ProfilePageClie
               </div>
             ) : (
               <>
-                <h3 className="text-xl sm:text-2xl font-semibold text-white mb-2">{user.name}</h3>
+                <h3 className="text-xl sm:text-2xl font-semibold text-gray-200 mb-2">{user.name}</h3>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="px-3 py-1.5 text-xs sm:text-sm font-medium bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-colors"
+                  className="px-3 py-1.5 text-xs sm:text-sm font-medium bg-purple-800 hover:bg-purple-900 rounded-lg text-gray-200 transition-colors"
                 >
                   Edit Profile
                 </button>
@@ -126,27 +126,47 @@ export default function ProfilePageClient({ user: initialUser }: ProfilePageClie
         </div>
 
         {/* Profile Details */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Email</label>
-            <p className="text-white">{user.email}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/30">
+            <label className="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              Email
+            </label>
+            <p className="text-gray-200 text-base sm:text-lg font-medium">{user.email}</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Role</label>
-            <span className={`inline-block px-3 py-1 rounded-full text-white text-sm font-medium ${roleColors[user.role] || 'bg-gray-600'}`}>
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/30">
+            <label className="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              Role
+            </label>
+            <span className={`inline-block px-3 py-1.5 rounded-full text-gray-200 text-sm font-semibold ${roleColors[user.role] || 'bg-gray-600'} shadow-md`}>
               {roleLabels[user.role] || user.role}
             </span>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Active Tasks</label>
-            <p className="text-white text-lg font-semibold">{user.tasksCount}</p>
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/30">
+            <label className="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              Active Tasks
+            </label>
+            <p className="text-white text-2xl sm:text-3xl font-bold text-purple-500">{user.tasksCount}</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Member Since</label>
-            <p className="text-white">
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/30">
+            <label className="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Member Since
+            </label>
+            <p className="text-gray-200 text-base sm:text-lg font-medium">
               {user.createdAt ? formatDistanceToNow(new Date(user.createdAt), { addSuffix: true }) : 'N/A'}
             </p>
           </div>

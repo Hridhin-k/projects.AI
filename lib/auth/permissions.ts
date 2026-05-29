@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUser } from './clerk';
+import { getCurrentUser } from './session';
 import type { User } from '@/lib/db/schema';
 
 export type UserRole = 'OWNER' | 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
@@ -151,18 +151,32 @@ export async function canViewMemberProfile(memberId: string, memberRole: UserRol
   return false;
 }
 
-// Check if user can invite members
+// Check if user can invite members (org owner or admin only)
 export async function canInviteMembers(): Promise<boolean> {
   const user = await getCurrentUser();
   if (!user) return false;
-  return user.role === 'ADMIN' || user.role === 'OWNER' || user.role === 'MANAGER';
+  return user.role === 'ADMIN' || user.role === 'OWNER';
 }
 
-// Check if user can invite managers (only Admin/Owner)
+// Owner or admin can add, edit, or remove team members in their org
+export async function canManageTeamMembers(): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user) return false;
+  return user.role === 'ADMIN' || user.role === 'OWNER';
+}
+
+// Check if user can invite managers (Owner/Admin)
 export async function canInviteManagers(): Promise<boolean> {
   const user = await getCurrentUser();
   if (!user) return false;
   return user.role === 'ADMIN' || user.role === 'OWNER';
+}
+
+// Only org owner can invite other admins
+export async function canInviteAdmins(): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user) return false;
+  return user.role === 'OWNER';
 }
 
 // Check if user can comment on a task

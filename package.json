@@ -1,36 +1,23 @@
 {
-  "name": "my-app",
+  "name": "projects-ai",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
-    "db:migrate-invites": "tsx scripts/migrate-invites-column.ts",
-    "db:check-members": "tsx scripts/check-members.ts",
-    "db:move-user": "tsx scripts/move-user-org.ts",
-    "db:check-roles": "tsx scripts/check-user-roles.ts",
-    "db:fix-enum": "tsx scripts/fix-user-role-enum.ts",
-    "seed:admin": "tsx scripts/seed-admin.ts",
-    "seed:demo-employees": "tsx scripts/seed-demo-employees.ts"
+    "lint": "eslint"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.35.5",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@getbrevo/brevo": "^3.0.1",
     "@google/generative-ai": "^0.24.1",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.106.2",
     "date-fns": "^4.1.0",
-    "dotenv": "^17.2.3",
-    "drizzle-orm": "^0.44.7",
     "next": "16.0.6",
-    "postgres": "^3.4.7",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "use-debounce": "^10.0.6"
@@ -38,14 +25,11 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/pg": "^8.15.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "drizzle-kit": "^0.31.7",
     "eslint": "^9",
     "eslint-config-next": "16.0.6",
     "tailwindcss": "^4",
-    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

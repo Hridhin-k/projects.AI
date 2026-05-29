@@ -45,9 +45,24 @@ export default function TaskFilters({ onFilterChange, members = [] }: TaskFilter
     }
   }, [filters, onFilterChange, debouncedFilterChange]);
 
+  const hasActiveFilters = filters.search || filters.status !== "ALL" || filters.priority !== "ALL" || filters.assignee !== "ALL";
+
   return (
-    <div className="bg-gray-900/50 border border-purple-500/20 rounded-lg p-3 sm:p-4 space-y-3 sm:space-y-4 animate-fade-in transition-all duration-300">
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+    <div className="bg-gray-900/50 border border-purple-500/20 rounded-lg p-3 sm:p-4 lg:p-5 space-y-3 sm:space-y-4 animate-fade-in transition-all duration-300">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-semibold text-gray-300 hidden sm:block">Filters</h3>
+        {hasActiveFilters && (
+          <span className="text-xs text-purple-300 bg-purple-900/20 px-2 py-1 rounded-full border border-purple-700/30">
+            {[
+              filters.search && "Search",
+              filters.status !== "ALL" && "Status",
+              filters.priority !== "ALL" && "Priority",
+              filters.assignee !== "ALL" && "Assignee"
+            ].filter(Boolean).length} active
+          </span>
+        )}
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 lg:gap-4">
         {/* Search */}
         <div className="flex-1">
           <div className="relative">
@@ -69,7 +84,7 @@ export default function TaskFilters({ onFilterChange, members = [] }: TaskFilter
               placeholder="Search tasks..."
               value={filters.search}
               onChange={(e) => handleFilterChange("search", e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-purple-500/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-200 focus:border-purple-500/50"
+              className="w-full pl-10 pr-4 py-2.5 sm:py-2 bg-gray-800 border border-purple-800/15 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-800/30 transition-all duration-200 focus:border-purple-800/25 text-sm sm:text-base min-h-[44px]"
             />
           </div>
         </div>
@@ -78,7 +93,7 @@ export default function TaskFilters({ onFilterChange, members = [] }: TaskFilter
         <select
           value={filters.status}
           onChange={(e) => handleFilterChange("status", e.target.value)}
-          className="px-3 sm:px-4 py-2 bg-gray-800 border border-purple-500/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-200 focus:border-purple-500/50"
+          className="px-3 sm:px-4 py-2.5 sm:py-2 bg-gray-800 border border-purple-800/15 rounded-lg text-gray-200 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-purple-800/30 transition-all duration-200 focus:border-purple-800/25 min-h-[44px] cursor-pointer"
         >
           <option value="ALL">All Status</option>
           <option value="TO_DO">To Do</option>
@@ -91,7 +106,7 @@ export default function TaskFilters({ onFilterChange, members = [] }: TaskFilter
         <select
           value={filters.priority}
           onChange={(e) => handleFilterChange("priority", e.target.value)}
-          className="px-3 sm:px-4 py-2 bg-gray-800 border border-purple-500/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-200 focus:border-purple-500/50"
+          className="px-3 sm:px-4 py-2.5 sm:py-2 bg-gray-800 border border-purple-800/15 rounded-lg text-gray-200 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-purple-800/30 transition-all duration-200 focus:border-purple-800/25 min-h-[44px] cursor-pointer"
         >
           <option value="ALL">All Priorities</option>
           <option value="LOW">Low</option>
@@ -105,7 +120,7 @@ export default function TaskFilters({ onFilterChange, members = [] }: TaskFilter
           <select
             value={filters.assignee}
             onChange={(e) => handleFilterChange("assignee", e.target.value)}
-            className="px-3 sm:px-4 py-2 bg-gray-800 border border-purple-500/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-200 focus:border-purple-500/50"
+            className="px-3 sm:px-4 py-2.5 sm:py-2 bg-gray-800 border border-purple-800/15 rounded-lg text-gray-200 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-purple-800/30 transition-all duration-200 focus:border-purple-800/25 min-h-[44px] cursor-pointer"
           >
             <option value="ALL">All Assignees</option>
             <option value="">Unassigned</option>
@@ -130,7 +145,7 @@ export default function TaskFilters({ onFilterChange, members = [] }: TaskFilter
               setFilters(resetFilters);
               onFilterChange(resetFilters);
             }}
-            className="px-4 py-2 bg-gray-800 border border-purple-500/20 rounded-lg text-white hover:bg-gray-700 transition-all duration-200 text-sm hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+            className="px-4 py-2.5 sm:py-2 bg-gray-800 border border-purple-500/20 rounded-lg text-white hover:bg-gray-700 transition-all duration-200 text-sm sm:text-base font-medium min-h-[44px] hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
           >
             Clear
           </button>
