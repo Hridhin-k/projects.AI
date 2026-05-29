@@ -34,13 +34,21 @@ interface ProjectTaskBoardProps {
   projectId: string;
   projectName: string;
   canManage: boolean;
+  initialTasks: Task[];
+  initialMembers: Array<{ id: string; name: string }>;
 }
 
-export default function ProjectTaskBoard({ projectId, projectName, canManage }: ProjectTaskBoardProps) {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [members, setMembers] = useState<Array<{ id: string; name: string }>>([]);
+export default function ProjectTaskBoard({
+  projectId,
+  projectName,
+  canManage,
+  initialTasks,
+  initialMembers,
+}: ProjectTaskBoardProps) {
+  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [members, setMembers] = useState(initialMembers);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [filters, setFilters] = useState<FilterState>({
     search: "",
@@ -51,6 +59,7 @@ export default function ProjectTaskBoard({ projectId, projectName, canManage }: 
   const { notification, showNotification, clearNotification } = useNotification();
 
   const loadData = useCallback(async () => {
+    setLoading(true);
     try {
       const [fetchedTasks, fetchedMembers] = await Promise.all([
         fetchTasks(projectId),
@@ -66,7 +75,6 @@ export default function ProjectTaskBoard({ projectId, projectName, canManage }: 
   }, [projectId]);
 
   useEffect(() => {
-    loadData();
     const onCreated = () => loadData();
     window.addEventListener("taskCreated", onCreated);
     return () => window.removeEventListener("taskCreated", onCreated);

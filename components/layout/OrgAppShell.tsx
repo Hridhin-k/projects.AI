@@ -1,22 +1,16 @@
-import { redirect } from 'next/navigation';
-import { getCurrentUser, getCurrentOrganization } from '@/lib/auth/session';
-import { isSuperAdmin } from '@/lib/auth/platform';
-import { toShellUser } from '@/lib/auth/shell-user';
-import AppShell from '@/components/layout/AppShell';
+import { Suspense } from 'react';
+import OrgShellHeader from '@/components/layout/OrgShellHeader';
+import OrgShellHeaderFallback from '@/components/layout/OrgShellHeaderFallback';
+import Footer from '@/components/layout/Footer';
 
-export default async function OrgAppShell({ children }: { children: React.ReactNode }) {
-  const user = await getCurrentUser();
-  if (user && isSuperAdmin(user)) {
-    redirect('/platform');
-  }
-  const org = await getCurrentOrganization();
-
+export default function OrgAppShell({ children }: { children: React.ReactNode }) {
   return (
-    <AppShell
-      user={user ? toShellUser(user) : null}
-      organizationName={org?.name}
-    >
-      {children}
-    </AppShell>
+    <div className="min-h-dvh flex flex-col bg-[#171725] text-gray-100">
+      <Suspense fallback={<OrgShellHeaderFallback />}>
+        <OrgShellHeader />
+      </Suspense>
+      <main className="flex-1 w-full">{children}</main>
+      <Footer />
+    </div>
   );
 }

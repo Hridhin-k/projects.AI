@@ -3,6 +3,7 @@
 import { cache } from 'react';
 import { getDb } from './index';
 import { requireAuth, getCurrentUser, requireOrganization } from '@/lib/auth/session';
+import { invalidateUserProfile } from '@/lib/auth/profile-cache';
 import { sendTaskAssignmentEmail, sendWelcomeEmail, sendInviteEmail, sendTaskProgressEmail } from '@/lib/email/brevo';
 import { generateInviteToken } from './invites';
 import { getRoleIdBySlug } from './roles';
@@ -1129,6 +1130,8 @@ export async function updateMemberRole(memberId: string, role: UserRole): Promis
     .select()
     .single();
   if (updateError || !updated) throw new Error(updateError?.message || 'Failed to update member');
+
+  invalidateUserProfile((updated as DbUser).auth_user_id);
 
   return mapUser(updated as DbUser);
 }

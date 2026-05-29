@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { getServerConfigError } from "@/lib/auth/server-config";
-import ServerConfigError from "@/components/layout/ServerConfigError";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -24,12 +22,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const configError = getServerConfigError();
-
   return (
     <html lang="en" className="dark">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        {configError ? <ServerConfigError message={configError} /> : children}
+        {children}
       </body>
     </html>
   );

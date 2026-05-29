@@ -1,10 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+
+let adminClient: SupabaseClient | null = null;
 
 /**
  * Service-role client for trusted server-side operations only.
  * Always scope queries by organization_id from the authenticated user profile.
  */
 export function createAdminClient() {
+  if (adminClient) return adminClient;
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -12,7 +16,9 @@ export function createAdminClient() {
     throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
   }
 
-  return createClient(url, key, {
+  adminClient = createClient(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+
+  return adminClient;
 }

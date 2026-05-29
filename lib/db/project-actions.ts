@@ -14,15 +14,14 @@ import type {
 } from './schema';
 import {
   mapProject,
-  mapTask,
   mapUser,
   type Project as DbProject,
-  type Task as DbTask,
   type ProjectMilestone as DbProjectMilestone,
   type Deployment as DbDeployment,
   type User as DbUser,
 } from '@/lib/types/database';
 import { DEFAULT_MILESTONES } from '@/lib/projects/constants';
+import { fetchProjectStats, fetchProjectStatsForOrg } from '@/lib/db/project-stats';
 
 function mapMilestone(row: DbProjectMilestone): ProjectMilestone {
   return {
@@ -67,44 +66,6 @@ export type ProjectWithStats = Project & {
   milestoneProgress: { completed: number; total: number };
 };
 
-async function getProjectTaskCounts(projectId: string, organizationId: string) {
-  const db = getDb();
-  const { data, error } = await db
-    .from('tasks')
-    .select('*')
-    .eq('project_id', projectId)
-    .eq('organization_id', organizationId);
-
-  if (error) throw new Error(error.message);
-
-  const taskRows = (data ?? []) as DbTask[];
-  const mappedTasks = taskRows.map(mapTask);
-
-  return {
-    total: mappedTasks.length,
-    done: mappedTasks.filter((task) => task.status === 'DONE').length,
-    inProgress: mappedTasks.filter(
-      (task) => task.status === 'IN_PROGRESS' || task.status === 'BLOCKED'
-    ).length,
-  };
-}
-
-async function getMilestoneProgress(projectId: string) {
-  const db = getDb();
-  const { data, error } = await db
-    .from('project_milestones')
-    .select('completed')
-    .eq('project_id', projectId);
-
-  if (error) throw new Error(error.message);
-
-  const rows = data ?? [];
-  return {
-    completed: rows.filter((row) => row.completed).length,
-    total: rows.length,
-  };
-}
-
 export const fetchProjects = cache(async (): Promise<ProjectWithStats[]> => {
   const { org } = await getCachedAuthContext();
   const db = getDb();
@@ -118,14 +79,17 @@ export const fetchProjects = cache(async (): Promise<ProjectWithStats[]> => {
   if (error) throw new Error(error.message);
 
   const projectList = ((data ?? []) as DbProject[]).map(mapProject);
-
-  return Promise.all(
-    projectList.map(async (project) => ({
-      ...project,
-      taskCounts: await getProjectTaskCounts(project.id, org.id),
-      milestoneProgress: await getMilestoneProgress(project.id),
-    }))
+  const projectIds = projectList.map((project) => project.id);
+  const { taskCountsByProject, milestoneProgressByProject } = await fetchProjectStatsForOrg(
+    org.id,
+    projectIds
   );
+
+  return projectList.map((project) => ({
+    ...project,
+    taskCounts: taskCountsByProject.get(project.id) ?? { total: 0, done: 0, inProgress: 0 },
+    milestoneProgress: milestoneProgressByProject.get(project.id) ?? { completed: 0, total: 0 },
+  }));
 });
 
 export const fetchProjectById = cache(async (projectId: string) => {
@@ -170,11 +134,10 @@ export const fetchProjectById = cache(async (projectId: string) => {
     new Set(deploymentRows.map((row) => row.deployed_by_id).filter((id): id is string => Boolean(id)))
   );
 
-  const [createdByResult, deployedByResult, taskCounts, milestoneProgress] = await Promise.all([
+  const [createdByResult, deployedByResult, projectStats] = await Promise.all([
     db.from('users').select('*').eq('id', project.createdById).maybeSingle(),
     deployedByIds.length > 0 ? db.from('users').select('*').in('id', deployedByIds) : Promise.resolve({ data: [], error: null }),
-    getProjectTaskCounts(project.id, org.id),
-    getMilestoneProgress(project.id),
+    fetchProjectStats(project.id, org.id),
   ]);
 
   if (createdByResult.error) throw new Error(createdByResult.error.message);
@@ -197,8 +160,8 @@ export const fetchProjectById = cache(async (projectId: string) => {
     milestones,
     deployments: deploymentsWithUsers,
     createdBy,
-    taskCounts,
-    milestoneProgress,
+    taskCounts: projectStats.taskCounts,
+    milestoneProgress: projectStats.milestoneProgress,
   };
 });
 

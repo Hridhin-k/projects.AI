@@ -22,27 +22,37 @@ export async function fetchPlatformOrganizations(): Promise<PlatformOrganization
   if (error) throw new Error(error.message);
 
   const list = (orgs ?? []) as DbOrganization[];
+  if (list.length === 0) return [];
 
-  return Promise.all(
-    list.map(async (row) => {
-      const org = mapOrganization(row);
-      const [{ count: memberCount }, { count: projectCount }] = await Promise.all([
-        db
-          .from('users')
-          .select('id', { count: 'exact', head: true })
-          .eq('organization_id', row.id),
-        db
-          .from('projects')
-          .select('id', { count: 'exact', head: true })
-          .eq('organization_id', row.id),
-      ]);
-      return {
-        ...org,
-        memberCount: memberCount ?? 0,
-        projectCount: projectCount ?? 0,
-      };
-    })
-  );
+  const orgIds = list.map((row) => row.id);
+  const [usersResult, projectsResult] = await Promise.all([
+    db.from('users').select('organization_id').in('organization_id', orgIds),
+    db.from('projects').select('organization_id').in('organization_id', orgIds),
+  ]);
+
+  if (usersResult.error) throw new Error(usersResult.error.message);
+  if (projectsResult.error) throw new Error(projectsResult.error.message);
+
+  const memberCounts = new Map<string, number>();
+  for (const row of usersResult.data ?? []) {
+    const orgId = row.organization_id as string;
+    memberCounts.set(orgId, (memberCounts.get(orgId) ?? 0) + 1);
+  }
+
+  const projectCounts = new Map<string, number>();
+  for (const row of projectsResult.data ?? []) {
+    const orgId = row.organization_id as string;
+    projectCounts.set(orgId, (projectCounts.get(orgId) ?? 0) + 1);
+  }
+
+  return list.map((row) => {
+    const org = mapOrganization(row);
+    return {
+      ...org,
+      memberCount: memberCounts.get(row.id) ?? 0,
+      projectCount: projectCounts.get(row.id) ?? 0,
+    };
+  });
 }
 
 export async function setOrganizationActive(

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import type { EmailOtpType } from '@supabase/supabase-js';
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler';
 import { provisionUserProfile } from '@/lib/auth/provision';
+import { invalidateUserProfile } from '@/lib/auth/profile-cache';
 
 function safeNextPath(next: string | null): string {
   if (!next || !next.startsWith('/') || next.startsWith('//')) {
@@ -65,6 +66,7 @@ export async function GET(request: NextRequest) {
       const { user: profile } = await provisionUserProfile(user.id, user.email || '', name, {
         organizationName: orgName,
       });
+      invalidateUserProfile(user.id);
       if (profile.role === 'SUPER_ADMIN') {
         return NextResponse.redirect(`${origin}/platform`);
       }

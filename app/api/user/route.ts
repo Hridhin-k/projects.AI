@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
+import { invalidateUserProfile } from "@/lib/auth/profile-cache";
 import { getDb } from "@/lib/db";
 import { mapUser, type User as UserRow } from "@/lib/types/database";
 
@@ -41,6 +42,8 @@ export async function PATCH(req: NextRequest) {
     if (error || !data) {
       throw new Error(error?.message || "Update failed");
     }
+
+    invalidateUserProfile(user.authUserId);
 
     return NextResponse.json(mapUser(data as UserRow));
   } catch (error) {

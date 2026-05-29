@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
-import { provisionUserProfile } from '@/lib/auth/provision';
+import { getCachedUserProfile } from '@/lib/auth/profile-cache';
 import { isSuperAdmin } from '@/lib/auth/platform';
 import type { Organization, User } from '@/lib/db/schema';
 
@@ -17,10 +17,12 @@ export async function requireOrgMember(): Promise<CurrentUser> {
 
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const supabase = await createClient();
+  // Middleware already validated the session via getUser(); read locally to avoid a second auth round trip.
   const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
+  const authUser = session?.user;
   if (!authUser) return null;
 
   const name =
@@ -31,17 +33,13 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const email = authUser.email || '';
 
   try {
-    const { user, organization } = await provisionUserProfile(authUser.id, email, name);
+    const { user, organization } = await getCachedUserProfile(authUser.id, email, name);
     return { ...user, organization };
   } catch (e) {
     if (e instanceof Error && e.message === 'INVITE_PENDING') {
       return null;
     }
-    if (e instanceof Error && e.message === 'ORG_SUSPENDED') {
-      throw e;
-    }
-    console.error('getCurrentUser provision error:', e);
-    return null;
+    throw e;
   }
 });
 

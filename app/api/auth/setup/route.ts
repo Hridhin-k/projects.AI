@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { provisionUserProfile } from '@/lib/auth/provision';
+import { invalidateUserProfile } from '@/lib/auth/profile-cache';
 
 function getMissingServerEnv(): string[] {
   const missing: string[] = [];
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
       name,
       { organizationName }
     );
+    invalidateUserProfile(user.id);
     return NextResponse.json({
       ok: true,
       userId: profile.id,

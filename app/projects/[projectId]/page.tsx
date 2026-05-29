@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { fetchProjectById } from '@/lib/db/project-actions';
 import { getCurrentUser } from '@/lib/auth/session';
+import { fetchTasks, fetchMembers } from '@/lib/db/actions';
 import ProjectDetailClient from '@/components/projects/ProjectDetailClient';
 
 export default async function ProjectDetailPage({
@@ -9,9 +10,11 @@ export default async function ProjectDetailPage({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = await params;
-  const [project, currentUser] = await Promise.all([
+  const [project, currentUser, initialTasks, initialMembers] = await Promise.all([
     fetchProjectById(projectId),
     getCurrentUser(),
+    fetchTasks(projectId),
+    fetchMembers(),
   ]);
 
   if (!project) {
@@ -26,6 +29,8 @@ export default async function ProjectDetailPage({
     <ProjectDetailClient
       initialProject={project}
       canManage={!!canManage}
+      initialTasks={initialTasks}
+      initialMembers={initialMembers.map((m) => ({ id: m.id, name: m.name }))}
     />
   );
 }
