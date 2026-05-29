@@ -10,6 +10,7 @@ import MembersPageClient from "@/components/members/MembersPageClient";
 export default async function MembersPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
+  if (!user.organization) redirect("/sign-in?error=setup");
 
   if (user.role === "EMPLOYEE") {
     return (

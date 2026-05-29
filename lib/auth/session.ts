@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
-import { getCachedUserProfile } from '@/lib/auth/profile-cache';
+import { loadUserProfile } from '@/lib/auth/profile-cache';
 import { isSuperAdmin } from '@/lib/auth/platform';
 import type { Organization, User } from '@/lib/db/schema';
 
@@ -17,12 +17,10 @@ export async function requireOrgMember(): Promise<CurrentUser> {
 
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const supabase = await createClient();
-  // Middleware already validated the session via getUser(); read locally to avoid a second auth round trip.
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
 
-  const authUser = session?.user;
   if (!authUser) return null;
 
   const name =
@@ -33,7 +31,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const email = authUser.email || '';
 
   try {
-    const { user, organization } = await getCachedUserProfile(authUser.id, email, name);
+    const { user, organization } = await loadUserProfile(authUser.id, email, name);
     return { ...user, organization };
   } catch (e) {
     if (e instanceof Error && e.message === 'INVITE_PENDING') {

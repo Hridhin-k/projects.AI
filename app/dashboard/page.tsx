@@ -7,6 +7,7 @@ import DashboardPageClient from "@/components/dashboard/DashboardPageClient";
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
+  if (!user.organization) redirect("/sign-in?error=setup");
 
   const [tasks, members, projects] = await Promise.all([
     fetchTasks(),

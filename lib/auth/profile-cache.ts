@@ -1,19 +1,16 @@
-import { unstable_cache, revalidateTag } from 'next/cache';
+import { revalidateTag } from 'next/cache';
 import { provisionUserProfile } from '@/lib/auth/provision';
 import type { Organization, User } from '@/lib/db/schema';
 
 export const USER_PROFILE_CACHE_TAG = 'user-profile';
 
-export async function getCachedUserProfile(
+/** Load user profile from DB. Called once per request via React cache() in session.ts. */
+export async function loadUserProfile(
   authUserId: string,
   email: string,
   name: string
 ): Promise<{ user: User; organization: Organization | null }> {
-  return unstable_cache(
-    () => provisionUserProfile(authUserId, email, name),
-    ['user-profile', authUserId],
-    { revalidate: 60, tags: [USER_PROFILE_CACHE_TAG, `user-profile-${authUserId}`] }
-  )();
+  return provisionUserProfile(authUserId, email, name);
 }
 
 export function invalidateUserProfile(authUserId: string) {

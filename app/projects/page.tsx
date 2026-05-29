@@ -6,6 +6,7 @@ import ProjectsPageClient from "@/components/projects/ProjectsPageClient";
 export default async function ProjectsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
+  if (!user.organization) redirect("/sign-in?error=setup");
 
   const projects = await fetchProjects();
 
