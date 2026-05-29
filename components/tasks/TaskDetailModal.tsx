@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Task } from "@/lib/db/schema";
+import type { Task, User } from "@/lib/db/schema";
 import { updateTaskAction, deleteTask } from "@/lib/db/actions";
 import { useNotification } from "@/components/ui/useNotification";
 import Notification from "@/components/ui/Notification";
@@ -12,6 +12,7 @@ interface TaskDetailModalProps {
   assigneeName?: string;
   creatorName?: string;
   members?: Array<{ id: string; name: string }>;
+  currentUser?: User;
   onClose: () => void;
   onUpdate: () => void;
 }
@@ -47,6 +48,7 @@ export default function TaskDetailModal({
   assigneeName,
   creatorName,
   members = [],
+  currentUser: currentUserProp,
   onClose,
   onUpdate,
 }: TaskDetailModalProps) {
@@ -68,46 +70,42 @@ export default function TaskDetailModal({
   const [canComment, setCanComment] = useState(false);
   const { notification, showNotification, clearNotification } = useNotification();
 
-  // Fetch current user and check permissions
+  const applyPermissions = (user: User) => {
+    const isAdminOrOwner = user.role === "ADMIN" || user.role === "OWNER";
+    const isManager = user.role === "MANAGER";
+    setCanEdit(isAdminOrOwner || isManager);
+    setCanDelete(isAdminOrOwner || (isManager && task.createdById === user.id));
+    setCanComment(
+      isAdminOrOwner ||
+        isManager ||
+        (user.role === "EMPLOYEE" && task.assigneeId === user.id)
+    );
+  };
+
   useEffect(() => {
+    if (currentUserProp) {
+      setCurrentUser(currentUserProp);
+      applyPermissions(currentUserProp);
+      return;
+    }
+
     const fetchUser = async () => {
       try {
-        const response = await fetch('/api/user');
+        const response = await fetch("/api/user");
         if (response.ok) {
           const user = await response.json();
           setCurrentUser(user);
-          
-          // Check permissions
-          const isAdminOrOwner = user.role === 'ADMIN' || user.role === 'OWNER';
-          const isManager = user.role === 'MANAGER';
-          const isEmployee = user.role === 'EMPLOYEE';
-          
-          // Can edit: Admin/Owner (any task), Manager (tasks assigned to members or created by them)
-          // Employees CANNOT edit tasks - they can only change status
-          setCanEdit(
-            isAdminOrOwner ||
-            (isManager && (task.assigneeId === null || true)) // Will be validated server-side
-          );
-          
-          // Can delete: Admin/Owner (any task), Manager (tasks they created), Employee (none)
-          setCanDelete(
-            isAdminOrOwner ||
-            (isManager && task.createdById === user.id)
-          );
-          
-          // Can comment: Admin/Owner/Manager (any task), Employee (their own tasks)
-          setCanComment(
-            isAdminOrOwner ||
-            isManager ||
-            (isEmployee && task.assigneeId === user.id)
-          );
+          applyPermissions(user);
         }
       } catch (error) {
-        console.error('Error fetching user:', error);
+        console.error("Error fetching user:", error);
       }
     };
-    
     fetchUser();
+  }, [currentUserProp, task.assigneeId, task.createdById]);
+
+  // Load comments
+  useEffect(() => {
     loadComments();
   }, [task.id]);
 

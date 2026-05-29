@@ -3,7 +3,11 @@
 import { useState } from "react";
 import AIChatBox from "./AIChatBox";
 
-export default function AIChatFAB() {
+interface AIChatFABProps {
+  projectId?: string;
+}
+
+export default function AIChatFAB({ projectId }: AIChatFABProps = {} as AIChatFABProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -13,7 +17,7 @@ export default function AIChatFAB() {
         onClick={() => setIsOpen(true)}
         className="fixed bottom-24 sm:bottom-28 md:bottom-32 right-4 sm:right-6 w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-purple-700 via-purple-600 to-teal-700 rounded-full shadow-2xl hover:shadow-purple-700/30 transition-all duration-300 hover:scale-110 active:scale-95 flex items-center justify-center text-white z-40 animate-bounce-in group animate-float"
         aria-label="Open AI Assistant"
-        title="Chat with Aura AI Assistant - Click to get help with tasks!"
+        title="Chat with Projects.AI Assistant"
       >
         {/* Pulsing ring animation for attention */}
         <div className="absolute inset-0 rounded-full bg-purple-700/20 animate-ping" style={{ animationDuration: '2s' }} />
@@ -65,7 +69,7 @@ export default function AIChatFAB() {
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-200">Aura AI Assistant</h2>
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-200">Projects.AI Assistant</h2>
                   <p className="text-xs sm:text-sm text-gray-400">Your intelligent task management companion</p>
                 </div>
               </div>
@@ -92,7 +96,7 @@ export default function AIChatFAB() {
 
             {/* AI Chat Box Content */}
             <div className="flex-1 overflow-hidden flex flex-col">
-              <AIChatBox />
+              <AIChatBox projectId={projectId} />
             </div>
           </div>
         </>

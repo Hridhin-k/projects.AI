@@ -1,30 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { SignInButton, SignUpButton } from "@clerk/nextjs";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-[#171725] to-gray-950 text-white overflow-hidden">
+    <div className="min-h-dvh bg-gradient-to-b from-gray-950 via-[#171725] to-gray-950 text-white overflow-hidden">
       {/* Navigation */}
       <nav className="container mx-auto px-4 py-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-teal-400 bg-clip-text text-transparent">
-            AuraTask
+            Projects.AI
           </h1>
-          <span className="text-xs text-gray-400 font-normal">AI-Powered</span>
+          <span className="text-xs text-gray-400 font-normal">AI project management</span>
         </div>
         <div className="flex items-center gap-4">
-          <SignInButton mode="modal">
-            <button className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors">
-              Sign In
-            </button>
-          </SignInButton>
-          <SignUpButton mode="modal">
-            <button className="px-6 py-2 text-sm font-medium bg-gradient-to-r from-purple-600 to-teal-600 rounded-lg text-white hover:shadow-lg hover:shadow-purple-500/50 transition-all">
-              Get Started
-            </button>
-          </SignUpButton>
+          <Link href="/sign-in" className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors">
+            Sign In
+          </Link>
+          <Link
+            href="/sign-up"
+            className="px-6 py-2 text-sm font-medium bg-gradient-to-r from-purple-600 to-teal-600 rounded-lg text-white hover:shadow-lg hover:shadow-purple-500/50 transition-all"
+          >
+            Get Started
+          </Link>
         </div>
       </nav>
 
@@ -38,34 +36,36 @@ export default function LandingPage() {
 
         <div className="relative z-10">
           <div className="inline-block mb-6 px-4 py-2 bg-purple-500/10 border border-purple-500/30 rounded-full text-sm text-purple-300">
-            ✨ AI-Powered Task Management
+            ✨ Plan → Build → Deploy
           </div>
           
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-teal-400 to-purple-400 bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient">
-            Manage Tasks with
+            Manage Projects from
             <br />
             <span className="bg-gradient-to-r from-teal-400 via-purple-400 to-teal-400 bg-clip-text text-transparent">
-              AI Intelligence
+              Start to Deployment
             </span>
           </h1>
           
           <p className="text-xl sm:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
-            Transform your team's productivity with Aura, your intelligent project manager assistant.
+            One hub for planning, development, testing, and production releases.
             <br className="hidden sm:block" />
-            Voice commands, smart workload balancing, and AI-powered insights.
+            Lifecycle phases, milestones, Kanban tasks, and deployment tracking — with AI assistance.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-            <SignUpButton mode="modal">
-              <button className="px-8 py-4 text-lg font-semibold bg-gradient-to-r from-purple-600 to-teal-600 rounded-lg text-white hover:shadow-xl hover:shadow-purple-500/50 transition-all transform hover:scale-105">
-                Start Free Trial
-              </button>
-            </SignUpButton>
-            <SignInButton mode="modal">
-              <button className="px-8 py-4 text-lg font-semibold bg-gray-800/50 border border-purple-500/30 rounded-lg text-white hover:bg-gray-800 transition-all">
-                Sign In
-              </button>
-            </SignInButton>
+            <Link
+              href="/sign-up"
+              className="px-8 py-4 text-lg font-semibold bg-gradient-to-r from-purple-600 to-teal-600 rounded-lg text-white hover:shadow-xl hover:shadow-purple-500/50 transition-all transform hover:scale-105"
+            >
+              Start Free Trial
+            </Link>
+            <Link
+              href="/sign-in"
+              className="px-8 py-4 text-lg font-semibold bg-gray-800/50 border border-purple-500/30 rounded-lg text-white hover:bg-gray-800 transition-all"
+            >
+              Sign In
+            </Link>
           </div>
 
           {/* Stats */}
@@ -105,7 +105,7 @@ export default function LandingPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
             </div>
-            <h3 className="text-2xl font-semibold mb-3 text-white">AI Assistant (Aura)</h3>
+            <h3 className="text-2xl font-semibold mb-3 text-white">AI Assistant</h3>
             <p className="text-gray-400 leading-relaxed">
               Conversational AI powered by Google Gemini. Create, edit, and manage tasks using natural language. Voice commands supported.
             </p>
@@ -146,7 +146,7 @@ export default function LandingPage() {
             </div>
             <h3 className="text-2xl font-semibold mb-3 text-white">Voice Commands</h3>
             <p className="text-gray-400 leading-relaxed">
-              Speak to Aura using your voice. Speech-to-text and text-to-speech support for hands-free task management.
+              Speak to the AI assistant using your voice. Speech-to-text and text-to-speech support for hands-free task management.
             </p>
           </div>
 
@@ -206,7 +206,7 @@ export default function LandingPage() {
             </div>
             <h3 className="text-xl font-semibold mb-3">Invite Team</h3>
             <p className="text-gray-400">
-              Add team members and assign roles. Aura will help balance workloads automatically.
+              Add team members and assign roles. The AI assistant will help balance workloads automatically.
             </p>
           </div>
           
@@ -216,7 +216,7 @@ export default function LandingPage() {
             </div>
             <h3 className="text-xl font-semibold mb-3">Start Managing</h3>
             <p className="text-gray-400">
-              Talk to Aura, create tasks, and watch your team's productivity soar.
+              Talk to the AI assistant, create tasks, and watch your team's productivity soar.
             </p>
           </div>
         </div>
@@ -231,19 +231,21 @@ export default function LandingPage() {
               Ready to Transform Your Workflow?
             </h2>
             <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-              Join teams already using AuraTask to manage their tasks more efficiently with AI assistance.
+              Join teams already using Projects.AI to manage their tasks more efficiently with AI assistance.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <SignUpButton mode="modal">
-                <button className="px-8 py-4 text-lg font-semibold bg-gradient-to-r from-purple-600 to-teal-600 rounded-lg text-white hover:shadow-xl hover:shadow-purple-500/50 transition-all transform hover:scale-105">
-                  Start Free Trial
-                </button>
-              </SignUpButton>
-              <SignInButton mode="modal">
-                <button className="px-8 py-4 text-lg font-semibold bg-gray-800/50 border border-purple-500/30 rounded-lg text-white hover:bg-gray-800 transition-all">
-                  Sign In
-                </button>
-              </SignInButton>
+              <Link
+                href="/sign-up"
+                className="px-8 py-4 text-lg font-semibold bg-gradient-to-r from-purple-600 to-teal-600 rounded-lg text-white hover:shadow-xl hover:shadow-purple-500/50 transition-all transform hover:scale-105"
+              >
+                Start Free Trial
+              </Link>
+              <Link
+                href="/sign-in"
+                className="px-8 py-4 text-lg font-semibold bg-gray-800/50 border border-purple-500/30 rounded-lg text-white hover:bg-gray-800 transition-all"
+              >
+                Sign In
+              </Link>
             </div>
           </div>
         </div>
@@ -254,12 +256,12 @@ export default function LandingPage() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-teal-400 bg-clip-text text-transparent">
-              AuraTask
+              Projects.AI
             </h1>
             <span className="text-xs text-gray-400">AI-Powered Task Management</span>
           </div>
           <div className="text-sm text-gray-400">
-            © {new Date().getFullYear()} AuraTask. All rights reserved.
+            © {new Date().getFullYear()} Projects.AI. All rights reserved.
           </div>
         </div>
       </footer>

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createTask } from "@/lib/db/actions";
 import { fetchMembers } from "@/lib/db/actions";
+import { fetchProjects } from "@/lib/db/project-actions";
 import type { AIResponse } from "@/app/api/ai/task-assistant/route";
 import TaskConfirmation from "./TaskConfirmation";
 import type { User } from "@/lib/db/schema";
@@ -14,11 +15,15 @@ interface Message {
   content: string;
 }
 
-export default function AIChatBox() {
+interface AIChatBoxProps {
+  projectId?: string;
+}
+
+export default function AIChatBox({ projectId }: AIChatBoxProps = {} as AIChatBoxProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Hello! I'm Aura, your Project Manager Assistant. How can I help you today? You can type your message or use the microphone button for voice input.",
+      content: "Hello! I'm your Projects.AI assistant. I can see your projects, tasks, and team — ask me things like \"what projects do we have?\" or \"who's working on what?\" You can also ask me to create a task.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -27,6 +32,7 @@ export default function AIChatBox() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [confirmationTask, setConfirmationTask] = useState<AIResponse["proposedTask"] | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([]);
   const [audioSupported, setAudioSupported] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -38,6 +44,9 @@ export default function AIChatBox() {
   useEffect(() => {
     // Load users on mount
     fetchMembers().then(setUsers);
+    fetchProjects().then((list) =>
+      setProjects(list.map((p) => ({ id: p.id, name: p.name })))
+    );
 
     // Check if audio features are supported
     const hasSpeechRecognition = typeof window !== "undefined" && 
@@ -208,8 +217,9 @@ export default function AIChatBox() {
     if (!input.trim() || isLoading) return;
 
     const userMessage = input.trim();
+    const conversation = [...messages, { role: "user" as const, content: userMessage }];
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setMessages(conversation);
     setIsLoading(true);
 
     try {
@@ -217,13 +227,17 @@ export default function AIChatBox() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: userMessage,
-          currentUsers: users,
+          messages: conversation,
+          projectId,
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to get AI response");
+        const body = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          message?: string;
+        };
+        throw new Error(body.message || body.error || "Failed to get AI response");
       }
 
       const aiResponse: AIResponse = await response.json();
@@ -242,7 +256,10 @@ export default function AIChatBox() {
       }
     } catch (error) {
       console.error("Error:", error);
-      const errorMessage = "I apologize, but I encountered an error. Please try again.";
+      const errorMessage =
+        error instanceof Error && error.message
+          ? error.message
+          : "I apologize, but I encountered an error. Please try again.";
       setMessages((prev) => [...prev, { role: "assistant", content: errorMessage }]);
     } finally {
       setIsLoading(false);
@@ -258,6 +275,7 @@ export default function AIChatBox() {
         description: confirmationTask.description,
         assigneeId: confirmationTask.assigneeId,
         dueDate: confirmationTask.dueDate,
+        projectId: confirmationTask.projectId,
       });
 
       setMessages((prev) => [
@@ -297,6 +315,10 @@ export default function AIChatBox() {
 
   const assigneeName = confirmationTask
     ? users.find((u) => u.id === confirmationTask.assigneeId)?.name
+    : undefined;
+
+  const projectName = confirmationTask
+    ? projects.find((p) => p.id === confirmationTask.projectId)?.name
     : undefined;
 
   return (
@@ -485,6 +507,7 @@ export default function AIChatBox() {
           onConfirm={handleConfirmTask}
           onCancel={handleCancelTask}
           assigneeName={assigneeName}
+          projectName={projectName}
         />
       )}
     </>

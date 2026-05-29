@@ -2,67 +2,69 @@
 
 import { useEffect, useState } from "react";
 
+type Theme = "light" | "dark";
+
+function applyTheme(theme: Theme) {
+  document.documentElement.classList.toggle("dark", theme === "dark");
+  localStorage.setItem("theme", theme);
+}
+
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<Theme>("dark");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    const saved = localStorage.getItem("theme") as Theme | null;
+    const initial: Theme = saved === "light" ? "light" : "dark";
+    setTheme(initial);
+    applyTheme(initial);
     setMounted(true);
-    // Check localStorage or default to dark
-    const savedTheme = localStorage.getItem("theme") as "dark" | "light" | null;
-    const initialTheme = savedTheme || "dark";
-    setTheme(initialTheme);
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
   }, []);
 
-  const toggleTheme = () => {
-    const newTheme = theme === "dark" ? "light" : "dark";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
+  const select = (next: Theme) => {
+    setTheme(next);
+    applyTheme(next);
   };
 
   if (!mounted) {
     return (
-      <button
-        className="w-10 h-10 rounded-lg border border-purple-500/20 bg-gray-800/50"
-        aria-label="Toggle theme"
+      <div
+        className="h-8 w-[4.5rem] rounded-full border border-purple-500/20 bg-gray-800/40"
+        aria-hidden
       />
     );
   }
 
   return (
-    <button
-      onClick={toggleTheme}
-      className="relative w-10 h-10 rounded-lg border border-purple-500/20 bg-gray-800/50 dark:bg-gray-900/50 hover:bg-gray-700/50 dark:hover:bg-gray-800/50 transition-colors flex items-center justify-center group"
-      aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+    <div
+      className="flex h-8 items-center rounded-full border border-purple-500/25 bg-gray-800/40 p-0.5 dark:border-purple-500/25 dark:bg-gray-900/60"
+      role="group"
+      aria-label="Theme"
     >
-      {theme === "dark" ? (
-        <svg
-          className="w-5 h-5 text-yellow-400"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-        </svg>
-      ) : (
-        <svg
-          className="w-5 h-5 text-gray-300"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-        </svg>
-      )}
-    </button>
+      <button
+        type="button"
+        onClick={() => select("light")}
+        aria-pressed={theme === "light"}
+        className={`rounded-full px-2.5 py-1 text-[11px] font-medium leading-none transition-colors ${
+          theme === "light"
+            ? "bg-white text-gray-900 shadow-sm"
+            : "text-gray-400 hover:text-gray-200"
+        }`}
+      >
+        Light
+      </button>
+      <button
+        type="button"
+        onClick={() => select("dark")}
+        aria-pressed={theme === "dark"}
+        className={`rounded-full px-2.5 py-1 text-[11px] font-medium leading-none transition-colors ${
+          theme === "dark"
+            ? "bg-gray-700 text-white shadow-sm"
+            : "text-gray-400 hover:text-gray-200"
+        }`}
+      >
+        Dark
+      </button>
+    </div>
   );
 }
-

@@ -8,6 +8,7 @@ interface TaskConfirmationProps {
   onConfirm: () => void;
   onCancel: () => void;
   assigneeName?: string;
+  projectName?: string;
 }
 
 export default function TaskConfirmation({
@@ -15,6 +16,7 @@ export default function TaskConfirmation({
   onConfirm,
   onCancel,
   assigneeName,
+  projectName,
 }: TaskConfirmationProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -52,6 +54,11 @@ export default function TaskConfirmation({
           <div>
             <label className="text-sm font-medium text-gray-400">Description</label>
             <p className="mt-1 text-white">{proposedTask.description}</p>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-400">Project</label>
+            <p className="mt-1 text-white">{projectName || "Unknown project"}</p>
           </div>
 
           <div>

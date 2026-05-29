@@ -25,7 +25,7 @@ Add these to your `.env.local` file:
 ```env
 BREVO_API_KEY=your_brevo_api_key_here
 BREVO_SENDER_EMAIL=your_verified_email@yourdomain.com
-BREVO_SENDER_NAME=AuraTask
+BREVO_SENDER_NAME=Projects.AI
 ```
 
 **Important:** 

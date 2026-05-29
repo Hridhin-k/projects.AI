@@ -1,4 +1,4 @@
-import { getCurrentUser } from '@/lib/auth/clerk';
+import { getCurrentUser } from '@/lib/auth/session';
 import { redirect } from 'next/navigation';
 import ProfilePageClient from '@/components/profile/ProfilePageClient';
 

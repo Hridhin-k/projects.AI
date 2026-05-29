@@ -7,6 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 interface TaskCardProps {
   task: Task;
   assigneeName?: string;
+  projectName?: string;
   onDragStart?: (task: Task) => void;
   onClick?: () => void;
 }
@@ -25,7 +26,7 @@ const PRIORITY_LABELS = {
   URGENT: "Urgent",
 };
 
-function TaskCard({ task, assigneeName, onDragStart, onClick }: TaskCardProps) {
+function TaskCard({ task, assigneeName, projectName, onDragStart, onClick }: TaskCardProps) {
   const priorityColor = task.priority ? PRIORITY_COLORS[task.priority] : PRIORITY_COLORS.MEDIUM;
   const priorityLabel = task.priority ? PRIORITY_LABELS[task.priority] : "Medium";
 
@@ -65,6 +66,12 @@ function TaskCard({ task, assigneeName, onDragStart, onClick }: TaskCardProps) {
 
       {task.description && (
         <p className="text-xs sm:text-sm text-gray-400 mb-3 line-clamp-2 leading-relaxed">{task.description}</p>
+      )}
+
+      {projectName && (
+        <p className="text-xs text-purple-300/80 mb-2 truncate">
+          🚀 {projectName}
+        </p>
       )}
 
       <div className="flex items-center justify-between text-xs text-gray-500 mt-3 pt-3 border-t border-gray-700/50">

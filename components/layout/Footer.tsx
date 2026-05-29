@@ -11,13 +11,13 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 mb-6 sm:mb-8">
           {/* Brand Section */}
           <div className="space-y-3">
-            <Link href="/dashboard" className="flex items-center gap-2 group">
-              <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-teal-600 bg-clip-text text-transparent group-hover:scale-105 transition-transform duration-300">
-                AuraTask
+            <Link href="/projects" className="flex items-center gap-2 group">
+              <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-purple-400 to-teal-400 bg-clip-text text-transparent">
+                Projects.AI
               </h3>
             </Link>
             <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
-              AI-powered task management for modern teams. Streamline workflows and boost productivity.
+              Project management from planning through deployment.
             </p>
           </div>
 
@@ -27,10 +27,10 @@ export default function Footer() {
             <ul className="space-y-2">
               <li>
                 <Link 
-                  href="/dashboard" 
+                  href="/projects" 
                   className="text-xs sm:text-sm text-gray-400 hover:text-gray-200 transition-colors duration-200"
                 >
-                  Dashboard
+                  Projects
                 </Link>
               </li>
               <li>
@@ -97,13 +97,13 @@ export default function Footer() {
             <ul className="space-y-2">
               <li>
                 <a 
-                  href="mailto:support@auratask.com" 
+                  href="mailto:support@Projects.AI" 
                   className="text-xs sm:text-sm text-gray-400 hover:text-gray-200 transition-colors duration-200 flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
-                  support@auratask.com
+                  support@Projects.AI
                 </a>
               </li>
               <li className="flex items-center gap-3 pt-2">
@@ -143,7 +143,7 @@ export default function Footer() {
         <div className="border-t border-purple-800/10 pt-4 sm:pt-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
             <p className="text-xs sm:text-sm text-gray-400 text-center sm:text-left">
-              © {currentYear} AuraTask. All rights reserved.
+              © {currentYear} Projects.AI. All rights reserved.
             </p>
             <div className="flex items-center gap-4 text-xs sm:text-sm text-gray-400">
               <span className="flex items-center gap-1.5">
