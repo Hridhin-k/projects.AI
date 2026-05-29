@@ -2,7 +2,26 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { provisionUserProfile } from '@/lib/auth/provision';
 
+function getMissingServerEnv(): string[] {
+  const missing: string[] = [];
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push('NEXT_PUBLIC_SUPABASE_URL');
+  if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) missing.push('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missing.push('SUPABASE_SERVICE_ROLE_KEY');
+  return missing;
+}
+
 export async function POST(request: Request) {
+  const missingEnv = getMissingServerEnv();
+  if (missingEnv.length > 0) {
+    console.error('Auth setup misconfigured:', missingEnv);
+    return NextResponse.json(
+      {
+        error: `Server misconfigured. Add ${missingEnv.join(', ')} in Vercel → Settings → Environment Variables, then redeploy.`,
+      },
+      { status: 503 }
+    );
+  }
+
   const supabase = await createClient();
   const {
     data: { user },

@@ -6,12 +6,24 @@ import {
   type User as DbUser,
   type Organization as DbOrganization,
 } from '@/lib/types/database';
-import type { Organization, User } from '@/lib/db/schema';
-import { getRoleIdBySlug } from '@/lib/db/roles';
+import type { Organization, User, UserRole } from '@/lib/db/schema';
 
 export type ProvisionOptions = {
   organizationName?: string;
 };
+
+async function resolveRoleId(
+  admin: ReturnType<typeof createAdminClient>,
+  slug: UserRole
+): Promise<string> {
+  const { data, error } = await admin.from('roles').select('id').eq('slug', slug).single();
+  if (error || !data) {
+    throw new Error(
+      `Role not found: ${slug}. Apply Supabase migrations (roles table) on your project.`
+    );
+  }
+  return data.id;
+}
 
 export async function provisionUserProfile(
   authUserId: string,
@@ -52,7 +64,7 @@ export async function provisionUserProfile(
   }
 
   if (isSuperAdminEmail(normalizedEmail)) {
-    const superAdminRoleId = await getRoleIdBySlug('SUPER_ADMIN');
+    const superAdminRoleId = await resolveRoleId(admin, 'SUPER_ADMIN');
     const { data: superUser, error: superError } = await admin
       .from('users')
       .insert({
@@ -100,7 +112,7 @@ export async function provisionUserProfile(
     throw new Error(orgError?.message || 'Failed to create organization');
   }
 
-  const ownerRoleId = await getRoleIdBySlug('OWNER');
+  const ownerRoleId = await resolveRoleId(admin, 'OWNER');
   const { data: newUser, error: userError } = await admin
     .from('users')
     .insert({

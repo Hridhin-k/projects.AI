@@ -40,6 +40,9 @@ function formatAuthError(message: string): string {
       "(your account may already exist). Otherwise try a different email or use Forgot password on the sign-in page."
     );
   }
+  if (message.includes("SUPABASE_SERVICE_ROLE_KEY") || message.includes("Server misconfigured")) {
+    return message;
+  }
   return message;
 }
 
@@ -58,27 +61,6 @@ async function checkPlatformAdminEmail(email: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-async function completeAccountSetup(organizationName?: string): Promise<{ error: string | null; role?: string }> {
-  const res = await fetch("/api/auth/setup", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ organizationName }),
-  });
-  const contentType = res.headers.get("content-type") ?? "";
-  const body = contentType.includes("application/json")
-    ? ((await res.json().catch(() => ({}))) as { error?: string; role?: string })
-    : {};
-  if (!res.ok) {
-    return { error: body.error || "Could not finish setting up your account. Try again." };
-  }
-  return { error: null, role: body.role };
-}
-
-function postAuthPath(redirectTo: string, role?: string): string {
-  if (role === "SUPER_ADMIN") return "/platform";
-  return redirectTo;
 }
 
 export default function AuthForm({ mode, redirectTo = "/projects" }: AuthFormProps) {
@@ -167,10 +149,7 @@ export default function AuthForm({ mode, redirectTo = "/projects" }: AuthFormPro
           return;
         }
 
-        const setup = await completeAccountSetup(platformAdmin ? undefined : organizationName.trim());
-        if (setup.error) throw new Error(setup.error);
-
-        router.push(postAuthPath(redirectTo, setup.role));
+        router.push(platformAdmin ? "/platform" : redirectTo);
         router.refresh();
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -179,10 +158,8 @@ export default function AuthForm({ mode, redirectTo = "/projects" }: AuthFormPro
         });
         if (signInError) throw signInError;
 
-        const setup = await completeAccountSetup();
-        if (setup.error) throw new Error(setup.error);
-
-        router.push(postAuthPath(redirectTo, setup.role));
+        // Profile is provisioned on the next server render (getCurrentUser in layout)
+        router.push(redirectTo);
         router.refresh();
       }
     } catch (err) {
