@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 import LandingPage from "@/components/landing/LandingPage";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentUser } from "@/lib/auth/session";
-import { isSuperAdmin } from "@/lib/auth/platform";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -10,11 +8,8 @@ export default async function Home() {
     data: { user: authUser },
   } = await supabase.auth.getUser();
 
+  // Logged-in users: send to app (OrgAppShell handles super-admin → /platform)
   if (authUser) {
-    const user = await getCurrentUser();
-    if (user && isSuperAdmin(user)) {
-      redirect("/platform");
-    }
     redirect("/projects");
   }
 

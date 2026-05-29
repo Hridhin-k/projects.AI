@@ -37,7 +37,11 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     if (e instanceof Error && e.message === 'INVITE_PENDING') {
       return null;
     }
-    throw e;
+    if (e instanceof Error && e.message === 'ORG_SUSPENDED') {
+      throw e;
+    }
+    console.error('getCurrentUser provision error:', e);
+    return null;
   }
 });
 
