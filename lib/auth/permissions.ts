@@ -1,21 +1,16 @@
-"use server";
+import type { User } from '@/lib/db/schema';
 
-import { getCurrentUser } from './session';
+/** Sync permission checks — pass user from getCachedAuthContext() or getCurrentUser(). */
 
-/**
- * Permission helpers for role-based access control.
- */
-
-export async function canCreateTasks(): Promise<boolean> {
-  const user = await getCurrentUser();
-  if (!user) return false;
+export function canCreateTasks(user: User): boolean {
   return user.role === 'ADMIN' || user.role === 'OWNER' || user.role === 'MANAGER';
 }
 
-export async function canEditTask(taskAssigneeId: string | null, taskCreatedById: string): Promise<boolean> {
-  const user = await getCurrentUser();
-  if (!user) return false;
-
+export function canEditTask(
+  user: User,
+  taskAssigneeId: string | null,
+  taskCreatedById: string
+): boolean {
   if (user.role === 'ADMIN' || user.role === 'OWNER') {
     return true;
   }
@@ -30,10 +25,7 @@ export async function canEditTask(taskAssigneeId: string | null, taskCreatedById
   return false;
 }
 
-export async function canDeleteTask(taskCreatedById: string): Promise<boolean> {
-  const user = await getCurrentUser();
-  if (!user) return false;
-
+export function canDeleteTask(user: User, taskCreatedById: string): boolean {
   if (user.role === 'ADMIN' || user.role === 'OWNER') {
     return true;
   }
@@ -45,16 +37,11 @@ export async function canDeleteTask(taskCreatedById: string): Promise<boolean> {
   return false;
 }
 
-export async function canReassignTasks(): Promise<boolean> {
-  const user = await getCurrentUser();
-  if (!user) return false;
+export function canReassignTasks(user: User): boolean {
   return user.role === 'ADMIN' || user.role === 'OWNER' || user.role === 'MANAGER';
 }
 
-export async function canChangeTaskStatus(taskAssigneeId: string | null): Promise<boolean> {
-  const user = await getCurrentUser();
-  if (!user) return false;
-
+export function canChangeTaskStatus(user: User, taskAssigneeId: string | null): boolean {
   if (user.role === 'ADMIN' || user.role === 'OWNER' || user.role === 'MANAGER') {
     return true;
   }
@@ -66,16 +53,11 @@ export async function canChangeTaskStatus(taskAssigneeId: string | null): Promis
   return false;
 }
 
-export async function canManageTeamMembers(): Promise<boolean> {
-  const user = await getCurrentUser();
-  if (!user) return false;
+export function canManageTeamMembers(user: User): boolean {
   return user.role === 'ADMIN' || user.role === 'OWNER';
 }
 
-export async function canCommentOnTask(taskAssigneeId: string | null): Promise<boolean> {
-  const user = await getCurrentUser();
-  if (!user) return false;
-
+export function canCommentOnTask(user: User, taskAssigneeId: string | null): boolean {
   if (user.role === 'ADMIN' || user.role === 'OWNER' || user.role === 'MANAGER') {
     return true;
   }
@@ -85,4 +67,8 @@ export async function canCommentOnTask(taskAssigneeId: string | null): Promise<b
   }
 
   return false;
+}
+
+export function canInviteUsers(user: User): boolean {
+  return user.role === 'OWNER' || user.role === 'ADMIN';
 }

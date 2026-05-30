@@ -1,6 +1,8 @@
 import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { provisionUserProfile } from '@/lib/auth/provision';
+import { loadExistingProfile } from '@/lib/auth/load-profile';
+import { invalidateUserProfile } from '@/lib/auth/profile-cache';
 import { isSuperAdmin } from '@/lib/auth/platform';
 import type { Organization, User } from '@/lib/db/schema';
 
@@ -31,7 +33,20 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const email = authUser.email || '';
 
   try {
+    const existing = await loadExistingProfile(authUser.id);
+    if (existing) {
+      if (
+        existing.organization &&
+        !existing.organization.isActive &&
+        existing.user.role !== 'SUPER_ADMIN'
+      ) {
+        throw new Error('ORG_SUSPENDED');
+      }
+      return { ...existing.user, organization: existing.organization };
+    }
+
     const { user, organization } = await provisionUserProfile(authUser.id, email, name);
+    invalidateUserProfile(authUser.id);
     return { ...user, organization };
   } catch (e) {
     if (e instanceof Error && e.message === 'INVITE_PENDING') {
@@ -39,6 +54,12 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     }
     throw e;
   }
+});
+
+/** Single auth + org context per request for server actions. */
+export const getCachedAuthContext = cache(async () => {
+  const currentUser = await requireOrgMember();
+  return { org: currentUser.organization!, currentUser };
 });
 
 export async function getCurrentOrganization(): Promise<Organization | null> {

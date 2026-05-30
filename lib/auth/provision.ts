@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isSuperAdminEmail } from '@/lib/auth/platform';
+import { loadExistingProfile } from '@/lib/auth/load-profile';
 import {
   mapOrganization,
   mapUser,
@@ -34,21 +35,16 @@ export async function provisionUserProfile(
   const admin = createAdminClient();
   const normalizedEmail = email.trim().toLowerCase();
 
-  const { data: existing } = await admin
-    .from('users')
-    .select('*')
-    .eq('auth_user_id', authUserId)
-    .maybeSingle();
-
+  const existing = await loadExistingProfile(authUserId);
   if (existing) {
-    if (existing.organization_id) {
-      const organization = await fetchOrg(admin, existing.organization_id);
-      if (!organization.isActive && existing.role !== 'SUPER_ADMIN') {
-        throw new Error('ORG_SUSPENDED');
-      }
-      return { user: mapUser(existing as DbUser), organization };
+    if (
+      existing.organization &&
+      !existing.organization.isActive &&
+      existing.user.role !== 'SUPER_ADMIN'
+    ) {
+      throw new Error('ORG_SUSPENDED');
     }
-    return { user: mapUser(existing as DbUser), organization: null };
+    return existing;
   }
 
   const { data: pendingInvite } = await admin
@@ -135,13 +131,4 @@ export async function provisionUserProfile(
     user: mapUser(newUser as DbUser),
     organization: mapOrganization(org as DbOrganization),
   };
-}
-
-async function fetchOrg(
-  admin: ReturnType<typeof createAdminClient>,
-  orgId: string
-): Promise<Organization> {
-  const { data, error } = await admin.from('organizations').select('*').eq('id', orgId).single();
-  if (error || !data) throw new Error('Organization not found');
-  return mapOrganization(data as DbOrganization);
 }

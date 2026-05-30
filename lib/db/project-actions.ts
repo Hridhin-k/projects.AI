@@ -2,7 +2,7 @@
 
 import { cache } from 'react';
 import { getDb } from './index';
-import { requireAuth, getCurrentUser, requireOrganization } from '@/lib/auth/session';
+import { getCachedAuthContext } from '@/lib/auth/session';
 import type {
   Project,
   ProjectMilestone,
@@ -49,13 +49,6 @@ function mapDeployment(row: DbDeployment): Deployment {
     createdAt: new Date(row.created_at),
   };
 }
-
-const getCachedAuthContext = cache(async () => {
-  await requireAuth();
-  const org = await requireOrganization();
-  const currentUser = await getCurrentUser();
-  return { org, currentUser };
-});
 
 function canManageProjects(role: User['role']) {
   return role === 'OWNER' || role === 'ADMIN' || role === 'MANAGER';

@@ -2,7 +2,7 @@
 
 import { cache } from 'react';
 import { getDb } from './index';
-import { requireAuth, getCurrentUser, requireOrganization } from '@/lib/auth/session';
+import { getCachedAuthContext, getCurrentUser } from '@/lib/auth/session';
 import { invalidateUserProfile } from '@/lib/auth/profile-cache';
 import { sendTaskAssignmentEmail, sendWelcomeEmail, sendInviteEmail, sendTaskProgressEmail } from '@/lib/email/resend';
 import { runInBackground } from '@/lib/async/run-in-background';
@@ -18,6 +18,7 @@ import {
   canChangeTaskStatus,
   canCommentOnTask,
   canManageTeamMembers,
+  canInviteUsers,
 } from '@/lib/auth/permissions';
 import type { UserRole } from '@/lib/db/schema';
 import type { PerformanceMetric, Task, TaskComment, User } from './schema';
@@ -74,14 +75,6 @@ function mapTaskComment(row: DbTaskComment): TaskComment {
     updatedAt: new Date(row.updated_at),
   };
 }
-
-// Cache auth context to avoid redundant calls
-const getCachedAuthContext = cache(async () => {
-  await requireAuth();
-  const org = await requireOrganization();
-  const currentUser = await getCurrentUser();
-  return { org, currentUser };
-});
 
 // Helper to recalculate tasksCount for a user
 async function recalculateTasksCount(userId: string, organizationId: string): Promise<void> {
@@ -510,11 +503,9 @@ export const fetchStoredPerformanceMetrics = cache(async (): Promise<Performance
 
 // Monitor all members' performance (triggers AI evaluation for all)
 export async function monitorAllMembersPerformance(): Promise<{ success: boolean; evaluated: number; errors: string[] }> {
-  await requireAuth();
-  const org = await requireOrganization();
-  const currentUser = await getCurrentUser();
+  const { org, currentUser } = await getCachedAuthContext();
 
-  if (!currentUser || !['ADMIN', 'OWNER', 'MANAGER'].includes(currentUser.role)) {
+  if (!['ADMIN', 'OWNER', 'MANAGER'].includes(currentUser.role)) {
     throw new Error('You do not have permission to monitor performance');
   }
 
@@ -551,12 +542,9 @@ export async function createTask(taskData: {
   priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   projectId: string;
 }): Promise<Task> {
-  await requireAuth();
-  const org = await requireOrganization();
-  const currentUser = await getCurrentUser();
-  if (!currentUser) throw new Error('User not found');
+  const { org, currentUser } = await getCachedAuthContext();
 
-  if (!(await canCreateTasks())) {
+  if (!canCreateTasks(currentUser)) {
     throw new Error('You do not have permission to create tasks');
   }
 
@@ -632,10 +620,7 @@ export async function updateTaskAction(
     Pick<Task, 'title' | 'description' | 'assigneeId' | 'status' | 'dueDate' | 'priority' | 'projectId'>
   >
 ): Promise<Task> {
-  await requireAuth();
-  const org = await requireOrganization();
-  const currentUser = await getCurrentUser();
-  if (!currentUser) throw new Error('User not found');
+  const { org, currentUser } = await getCachedAuthContext();
 
   const db = getDb();
 
@@ -656,12 +641,12 @@ export async function updateTaskAction(
     changes.priority !== undefined ||
     changes.dueDate !== undefined;
 
-  if (hasStatusChange && !(await canChangeTaskStatus(currentTask.assignee_id || null))) {
+  if (hasStatusChange && !canChangeTaskStatus(currentUser, currentTask.assignee_id || null)) {
     throw new Error('You do not have permission to change task status');
   }
 
   if (hasAssigneeChange) {
-    if (!(await canReassignTasks())) {
+    if (!canReassignTasks(currentUser)) {
       throw new Error('You do not have permission to reassign tasks');
     }
 
@@ -679,7 +664,7 @@ export async function updateTaskAction(
       throw new Error('You can only update the status of your tasks');
     }
 
-    if (!(await canEditTask(currentTask.assignee_id || null, currentTask.created_by_id))) {
+    if (!canEditTask(currentUser, currentTask.assignee_id || null, currentTask.created_by_id)) {
       throw new Error('You do not have permission to edit this task');
     }
 
@@ -798,10 +783,7 @@ export async function updateTaskAction(
 
 // Delete a task
 export async function deleteTask(taskId: string): Promise<void> {
-  await requireAuth();
-  const org = await requireOrganization();
-  const currentUser = await getCurrentUser();
-  if (!currentUser) throw new Error('User not found');
+  const { org, currentUser } = await getCachedAuthContext();
 
   const db = getDb();
   const { data: task, error: taskError } = await db
@@ -813,7 +795,7 @@ export async function deleteTask(taskId: string): Promise<void> {
   if (taskError) throw new Error(taskError.message);
   if (!task) throw new Error(`Task with id ${taskId} not found`);
 
-  if (!(await canDeleteTask(task.created_by_id))) {
+  if (!canDeleteTask(currentUser, task.created_by_id)) {
     throw new Error('You do not have permission to delete this task');
   }
 
@@ -824,11 +806,6 @@ export async function deleteTask(taskId: string): Promise<void> {
     await recalculateTasksCount(task.assignee_id, org.id);
     schedulePerformanceMetricsUpdate(task.assignee_id, org.id);
   }
-}
-
-// Check if user has permission to invite (Owner or Admin)
-async function canInviteUsers(userRole: string): Promise<boolean> {
-  return userRole === 'OWNER' || userRole === 'ADMIN';
 }
 
 const INVITE_ROLES = ['ADMIN', 'MANAGER', 'EMPLOYEE'] as const;
@@ -843,12 +820,9 @@ export async function createInvite(
   email: string,
   role: InviteRole
 ): Promise<{ invite: any; inviteLink: string }> {
-  await requireAuth();
-  const org = await requireOrganization();
-  const currentUser = await getCurrentUser();
-  if (!currentUser) throw new Error('User not found');
+  const { org, currentUser } = await getCachedAuthContext();
 
-  if (!(await canInviteUsers(currentUser.role))) {
+  if (!canInviteUsers(currentUser)) {
     throw new Error('Only organization owners and admins can invite members');
   }
 
@@ -901,12 +875,9 @@ export async function createInvite(
 
 // Get all invites for current organization
 export async function getInvites(): Promise<any[]> {
-  await requireAuth();
-  const org = await requireOrganization();
-  const currentUser = await getCurrentUser();
-  if (!currentUser) throw new Error('User not found');
+  const { org, currentUser } = await getCachedAuthContext();
 
-  if (!(await canInviteUsers(currentUser.role))) {
+  if (!canInviteUsers(currentUser)) {
     throw new Error('You do not have permission to view invites');
   }
 
@@ -990,10 +961,7 @@ export async function addMemberViaInvite(inviteToken: string, authUserId: string
 
 // Add a comment to a task
 export async function addTaskComment(taskId: string, content: string): Promise<any> {
-  await requireAuth();
-  const org = await requireOrganization();
-  const currentUser = await getCurrentUser();
-  if (!currentUser) throw new Error('User not found');
+  const { org, currentUser } = await getCachedAuthContext();
 
   const db = getDb();
   const { data: task, error: taskError } = await db
@@ -1005,7 +973,7 @@ export async function addTaskComment(taskId: string, content: string): Promise<a
   if (taskError) throw new Error(taskError.message);
   if (!task) throw new Error('Task not found');
 
-  if (!(await canCommentOnTask(task.assignee_id || null))) {
+  if (!canCommentOnTask(currentUser, task.assignee_id || null)) {
     throw new Error('You do not have permission to comment on this task');
   }
 
@@ -1032,10 +1000,7 @@ export async function addTaskComment(taskId: string, content: string): Promise<a
 
 // Get comments for a task
 export async function getTaskComments(taskId: string): Promise<any[]> {
-  await requireAuth();
-  const org = await requireOrganization();
-  const currentUser = await getCurrentUser();
-  if (!currentUser) throw new Error('User not found');
+  const { org, currentUser } = await getCachedAuthContext();
 
   const db = getDb();
   const { data: task, error: taskError } = await db
@@ -1097,12 +1062,9 @@ export const getTrialStatus = cache(async () => {
 const TEAM_ROLES: UserRole[] = ['ADMIN', 'MANAGER', 'EMPLOYEE'];
 
 export async function updateMemberRole(memberId: string, role: UserRole): Promise<User> {
-  await requireAuth();
-  const org = await requireOrganization();
-  const currentUser = await getCurrentUser();
-  if (!currentUser) throw new Error('User not found');
+  const { org, currentUser } = await getCachedAuthContext();
 
-  if (!(await canManageTeamMembers())) {
+  if (!canManageTeamMembers(currentUser)) {
     throw new Error('Only organization owners and admins can update member roles');
   }
 
@@ -1149,12 +1111,9 @@ export async function updateMemberRole(memberId: string, role: UserRole): Promis
 }
 
 export async function removeMemberFromOrganization(memberId: string): Promise<void> {
-  await requireAuth();
-  const org = await requireOrganization();
-  const currentUser = await getCurrentUser();
-  if (!currentUser) throw new Error('User not found');
+  const { org, currentUser } = await getCachedAuthContext();
 
-  if (!(await canManageTeamMembers())) {
+  if (!canManageTeamMembers(currentUser)) {
     throw new Error('Only organization owners and admins can remove members');
   }
 
