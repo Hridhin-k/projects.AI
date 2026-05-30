@@ -6,7 +6,6 @@ import { format } from "date-fns";
 import type { ProjectDetail } from "@/lib/db/project-actions";
 import { updateProject, advanceProjectPhase } from "@/lib/db/project-actions";
 import { PHASE_LABELS, PHASE_ICONS, PHASE_COLORS } from "@/lib/projects/constants";
-import type { Task } from '@/lib/db/schema';
 import ProjectPhasePipeline from "./ProjectPhasePipeline";
 import ProjectMilestones from "./ProjectMilestones";
 import DeploymentTracker from "./DeploymentTracker";
@@ -17,15 +16,11 @@ type Tab = "overview" | "tasks" | "milestones" | "deployments";
 interface ProjectDetailClientProps {
   initialProject: ProjectDetail;
   canManage: boolean;
-  initialTasks: Task[];
-  initialMembers: Array<{ id: string; name: string }>;
 }
 
 export default function ProjectDetailClient({
   initialProject,
   canManage,
-  initialTasks,
-  initialMembers,
 }: ProjectDetailClientProps) {
   const [project, setProject] = useState(initialProject);
   const [tab, setTab] = useState<Tab>("overview");
@@ -233,8 +228,7 @@ export default function ProjectDetailClient({
           projectId={project.id}
           projectName={project.name}
           canManage={canManage}
-          initialTasks={initialTasks}
-          initialMembers={initialMembers}
+          deferInitialLoad
         />
       )}
 

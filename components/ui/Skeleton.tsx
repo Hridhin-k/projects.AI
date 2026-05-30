@@ -54,30 +54,6 @@ export function TaskCardSkeleton() {
   );
 }
 
-export function MemberCardSkeleton() {
-  return (
-    <div className="bg-gray-900 border border-purple-500/20 rounded-xl p-4 sm:p-6 space-y-4">
-      <div className="flex items-center gap-4">
-        <Skeleton variant="circular" width={60} height={60} />
-        <div className="flex-1 space-y-2">
-          <Skeleton variant="text" width="60%" height={20} />
-          <Skeleton variant="text" width="40%" height={14} />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-700/50">
-        <div className="space-y-2">
-          <Skeleton variant="text" width="50%" height={12} />
-          <Skeleton variant="text" width="80%" height={20} />
-        </div>
-        <div className="space-y-2">
-          <Skeleton variant="text" width="50%" height={12} />
-          <Skeleton variant="text" width="80%" height={20} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function KanbanColumnSkeleton() {
   return (
     <div className="flex flex-col space-y-2">

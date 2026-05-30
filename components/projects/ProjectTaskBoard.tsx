@@ -34,21 +34,24 @@ interface ProjectTaskBoardProps {
   projectId: string;
   projectName: string;
   canManage: boolean;
-  initialTasks: Task[];
-  initialMembers: Array<{ id: string; name: string }>;
+  initialTasks?: Task[];
+  initialMembers?: Array<{ id: string; name: string }>;
+  /** When true, fetch tasks/members on mount instead of using SSR props. */
+  deferInitialLoad?: boolean;
 }
 
 export default function ProjectTaskBoard({
   projectId,
   projectName,
   canManage,
-  initialTasks,
-  initialMembers,
+  initialTasks = [],
+  initialMembers = [],
+  deferInitialLoad = false,
 }: ProjectTaskBoardProps) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [members, setMembers] = useState(initialMembers);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(deferInitialLoad);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [filters, setFilters] = useState<FilterState>({
     search: "",
@@ -73,6 +76,12 @@ export default function ProjectTaskBoard({
       setLoading(false);
     }
   }, [projectId]);
+
+  useEffect(() => {
+    if (deferInitialLoad) {
+      loadData();
+    }
+  }, [deferInitialLoad, loadData]);
 
   useEffect(() => {
     const onCreated = () => loadData();

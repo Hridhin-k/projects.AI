@@ -22,26 +22,25 @@ function countMilestones(rows: { completed: boolean }[]): MilestoneProgress {
   return { completed, total: rows.length };
 }
 
-/** Batch-fetch task counts and milestone progress for many projects in 2 queries. */
-export async function fetchProjectStatsForOrg(
+function initStatsMaps(projectIds: string[]) {
+  const taskCountsByProject = new Map<string, TaskCounts>();
+  const milestoneProgressByProject = new Map<string, MilestoneProgress>();
+  for (const id of projectIds) {
+    taskCountsByProject.set(id, { ...EMPTY_TASK_COUNTS });
+    milestoneProgressByProject.set(id, { ...EMPTY_MILESTONE_PROGRESS });
+  }
+  return { taskCountsByProject, milestoneProgressByProject };
+}
+
+/** Fallback when RPC migrations are not yet applied. */
+async function fetchProjectStatsLegacy(
   organizationId: string,
   projectIds: string[]
 ): Promise<{
   taskCountsByProject: Map<string, TaskCounts>;
   milestoneProgressByProject: Map<string, MilestoneProgress>;
 }> {
-  const taskCountsByProject = new Map<string, TaskCounts>();
-  const milestoneProgressByProject = new Map<string, MilestoneProgress>();
-
-  for (const id of projectIds) {
-    taskCountsByProject.set(id, { ...EMPTY_TASK_COUNTS });
-    milestoneProgressByProject.set(id, { ...EMPTY_MILESTONE_PROGRESS });
-  }
-
-  if (projectIds.length === 0) {
-    return { taskCountsByProject, milestoneProgressByProject };
-  }
-
+  const { taskCountsByProject, milestoneProgressByProject } = initStatsMaps(projectIds);
   const db = getDb();
   const [tasksResult, milestonesResult] = await Promise.all([
     db.from('tasks').select('project_id, status').eq('organization_id', organizationId),
@@ -71,6 +70,57 @@ export async function fetchProjectStatsForOrg(
 
   for (const [projectId, rows] of milestonesByProject) {
     milestoneProgressByProject.set(projectId, countMilestones(rows));
+  }
+
+  return { taskCountsByProject, milestoneProgressByProject };
+}
+
+/** Batch-fetch task counts and milestone progress via SQL aggregation RPCs. */
+export async function fetchProjectStatsForOrg(
+  organizationId: string,
+  projectIds: string[]
+): Promise<{
+  taskCountsByProject: Map<string, TaskCounts>;
+  milestoneProgressByProject: Map<string, MilestoneProgress>;
+}> {
+  const { taskCountsByProject, milestoneProgressByProject } = initStatsMaps(projectIds);
+
+  if (projectIds.length === 0) {
+    return { taskCountsByProject, milestoneProgressByProject };
+  }
+
+  const db = getDb();
+  const [tasksResult, milestonesResult] = await Promise.all([
+    db.rpc('get_org_project_task_counts', { p_org_id: organizationId }),
+    db.rpc('get_project_milestone_progress', { p_project_ids: projectIds }),
+  ]);
+
+  const rpcUnavailable =
+    tasksResult.error?.code === 'PGRST202' ||
+    tasksResult.error?.message?.includes('get_org_project_task_counts') ||
+    milestonesResult.error?.code === 'PGRST202' ||
+    milestonesResult.error?.message?.includes('get_project_milestone_progress');
+
+  if (rpcUnavailable) {
+    return fetchProjectStatsLegacy(organizationId, projectIds);
+  }
+
+  if (tasksResult.error) throw new Error(tasksResult.error.message);
+  if (milestonesResult.error) throw new Error(milestonesResult.error.message);
+
+  for (const row of tasksResult.data ?? []) {
+    taskCountsByProject.set(row.project_id, {
+      total: Number(row.total),
+      done: Number(row.done),
+      inProgress: Number(row.in_progress),
+    });
+  }
+
+  for (const row of milestonesResult.data ?? []) {
+    milestoneProgressByProject.set(row.project_id, {
+      completed: Number(row.completed),
+      total: Number(row.total),
+    });
   }
 
   return { taskCountsByProject, milestoneProgressByProject };

@@ -4,7 +4,10 @@ import { cache } from 'react';
 import { getDb } from './index';
 import { requireAuth, getCurrentUser, requireOrganization } from '@/lib/auth/session';
 import { invalidateUserProfile } from '@/lib/auth/profile-cache';
-import { sendTaskAssignmentEmail, sendWelcomeEmail, sendInviteEmail, sendTaskProgressEmail } from '@/lib/email/brevo';
+import { sendTaskAssignmentEmail, sendWelcomeEmail, sendInviteEmail, sendTaskProgressEmail } from '@/lib/email/resend';
+import { runInBackground } from '@/lib/async/run-in-background';
+import { runWithConcurrency } from '@/lib/async/concurrency';
+import { PERFORMANCE_EVAL_CONCURRENCY } from '@/lib/ai/constants';
 import { generateInviteToken } from './invites';
 import { getRoleIdBySlug } from './roles';
 import {
@@ -103,24 +106,27 @@ async function recalculateTasksCount(userId: string, organizationId: string): Pr
   if (updateError) throw new Error(updateError.message);
 }
 
-// Fetch all tasks for current organization (with role-based filtering)
+const TASK_LIST_COLUMNS =
+  'id, title, description, assignee_id, status, due_date, priority, project_id, organization_id, created_by_id, created_at, updated_at';
+
+// Fetch tasks for current organization (role-based filtering pushed to SQL)
 export const fetchTasks = cache(async (projectId?: string): Promise<Task[]> => {
   const { org, currentUser } = await getCachedAuthContext();
   if (!currentUser) throw new Error('User not found');
 
   const db = getDb();
-  let tasksQuery = db.from('tasks').select('*').eq('organization_id', org.id).order('created_at', { ascending: false });
-  if (projectId) {
-    tasksQuery = tasksQuery.eq('project_id', projectId);
-  }
 
-  const { data: taskRows, error: tasksError } = await tasksQuery;
-  if (tasksError) throw new Error(tasksError.message);
-
-  const allTasks = (taskRows ?? []) as DbTask[];
-
-  if (currentUser.role === 'ADMIN' || currentUser.role === 'OWNER') {
-    return allTasks.map(mapTask);
+  if (currentUser.role === 'EMPLOYEE') {
+    let query = db
+      .from('tasks')
+      .select(TASK_LIST_COLUMNS)
+      .eq('organization_id', org.id)
+      .eq('assignee_id', currentUser.id)
+      .order('created_at', { ascending: false });
+    if (projectId) query = query.eq('project_id', projectId);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as DbTask[]).map(mapTask);
   }
 
   if (currentUser.role === 'MANAGER') {
@@ -131,23 +137,39 @@ export const fetchTasks = cache(async (projectId?: string): Promise<Task[]> => {
       .eq('role', 'EMPLOYEE');
     if (employeesError) throw new Error(employeesError.message);
 
-    const allowedAssigneeIds = new Set<string>([
+    const allowedAssigneeIds = [
       ...(employeeRows ?? []).map((employee) => employee.id),
       currentUser.id,
-    ]);
+    ];
 
-    return allTasks
-      .filter(
-        (task) =>
-          task.assignee_id === null ||
-          (task.assignee_id !== null && allowedAssigneeIds.has(task.assignee_id)) ||
-          task.created_by_id === currentUser.id
-      )
-      .map(mapTask);
+    const orFilters = [
+      'assignee_id.is.null',
+      `created_by_id.eq.${currentUser.id}`,
+      `assignee_id.in.(${allowedAssigneeIds.join(',')})`,
+    ];
+
+    let query = db
+      .from('tasks')
+      .select(TASK_LIST_COLUMNS)
+      .eq('organization_id', org.id)
+      .or(orFilters.join(','))
+      .order('created_at', { ascending: false });
+    if (projectId) query = query.eq('project_id', projectId);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as DbTask[]).map(mapTask);
   }
 
-  if (currentUser.role === 'EMPLOYEE') {
-    return allTasks.filter((task) => task.assignee_id === currentUser.id).map(mapTask);
+  if (currentUser.role === 'ADMIN' || currentUser.role === 'OWNER') {
+    let query = db
+      .from('tasks')
+      .select(TASK_LIST_COLUMNS)
+      .eq('organization_id', org.id)
+      .order('created_at', { ascending: false });
+    if (projectId) query = query.eq('project_id', projectId);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as DbTask[]).map(mapTask);
   }
 
   return [];
@@ -317,6 +339,12 @@ async function calculatePerformanceMetrics(
   return mapPerformanceMetric(created as DbPerformanceMetric);
 }
 
+function schedulePerformanceMetricsUpdate(userId: string, organizationId: string): void {
+  runInBackground(`performance-metrics:${userId}`, async () => {
+    await calculatePerformanceMetrics(userId, organizationId, false);
+  });
+}
+
 // Generate AI-powered performance evaluation using Gemini
 async function generateAIPerformanceEvaluation(data: {
   userName: string;
@@ -441,17 +469,23 @@ export async function fetchPerformanceMetrics(forceRecalculate: boolean = false)
   if (metricsError) throw new Error(metricsError.message);
 
   const metricsMap = new Map((existingMetrics ?? []).map((metric) => [metric.user_id, metric as DbPerformanceMetric]));
-  const metricPromises = (orgUsers ?? []).map(async (user) => {
+  const usersToEvaluate = (orgUsers ?? []).filter((user) => {
     const existingMetric = metricsMap.get(user.id);
-    const shouldUseAI =
+    return (
       forceRecalculate ||
       !existingMetric ||
       !existingMetric.evaluation_date ||
-      new Date().getTime() - new Date(existingMetric.evaluation_date).getTime() > 24 * 60 * 60 * 1000;
-    return calculatePerformanceMetrics(user.id, org.id, shouldUseAI);
+      new Date().getTime() - new Date(existingMetric.evaluation_date).getTime() > 24 * 60 * 60 * 1000
+    );
   });
 
-  await Promise.all(metricPromises);
+  await runWithConcurrency(
+    usersToEvaluate,
+    PERFORMANCE_EVAL_CONCURRENCY,
+    (user) => calculatePerformanceMetrics(user.id, org.id, true).then(() => undefined),
+    (user, error) =>
+      `Failed to evaluate ${user.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
+  );
 
   const { data: latestMetrics, error: latestError } = await db
     .from('performance_metrics')
@@ -489,18 +523,17 @@ export async function monitorAllMembersPerformance(): Promise<{ success: boolean
   if (usersError) throw new Error(usersError.message);
 
   const errors: string[] = [];
-  let evaluated = 0;
-
-  for (const user of orgUsers ?? []) {
-    try {
-      await calculatePerformanceMetrics(user.id, org.id, true);
-      evaluated += 1;
-    } catch (error) {
+  const { succeeded: evaluated, errors: evalErrors } = await runWithConcurrency(
+    orgUsers ?? [],
+    PERFORMANCE_EVAL_CONCURRENCY,
+    (user) => calculatePerformanceMetrics(user.id, org.id, true).then(() => undefined),
+    (user, error) => {
       const errorMessage = `Failed to evaluate ${user.name}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-      errors.push(errorMessage);
       console.error(errorMessage, error);
+      return errorMessage;
     }
-  }
+  );
+  errors.push(...evalErrors);
 
   return {
     success: errors.length === 0,
@@ -573,7 +606,7 @@ export async function createTask(taskData: {
     if (error) throw new Error(error.message);
 
     if (assignee) {
-      try {
+      runInBackground('task-assignment-email', async () => {
         await sendTaskAssignmentEmail({
           to: assignee.email,
           toName: assignee.name,
@@ -585,9 +618,7 @@ export async function createTask(taskData: {
           priority: taskData.priority || 'MEDIUM',
           status: 'TO_DO',
         });
-      } catch (error) {
-        console.error('Error sending assignment email:', error);
-      }
+      });
     }
   }
 
@@ -708,13 +739,16 @@ export async function updateTaskAction(
     }
   }
 
-  const assigneeIdToUpdate = hasAssigneeChange ? changes.assigneeId : currentTask.assignee_id;
-  if (assigneeIdToUpdate && (hasStatusChange || assigneeChanged)) {
-    try {
-      await calculatePerformanceMetrics(assigneeIdToUpdate, org.id, false);
-    } catch (error) {
-      console.error('Error updating performance metrics:', error);
-    }
+  const usersToUpdateMetrics = new Set<string>();
+  if (assigneeChanged) {
+    if (currentTask.assignee_id) usersToUpdateMetrics.add(currentTask.assignee_id);
+    if (changes.assigneeId) usersToUpdateMetrics.add(changes.assigneeId);
+  } else if (hasStatusChange && currentTask.assignee_id) {
+    usersToUpdateMetrics.add(currentTask.assignee_id);
+  }
+
+  for (const userId of usersToUpdateMetrics) {
+    schedulePerformanceMetricsUpdate(userId, org.id);
   }
 
   if (hasStatusChange && changes.status !== currentTask.status && currentTask.assignee_id) {
@@ -722,7 +756,7 @@ export async function updateTaskAction(
     const { data: creator } = await db.from('users').select('*').eq('id', currentTask.created_by_id).maybeSingle();
 
     if (assignee && creator && creator.id !== assignee.id) {
-      try {
+      runInBackground('task-progress-email', async () => {
         await sendTaskProgressEmail({
           to: creator.email,
           toName: creator.name,
@@ -732,33 +766,17 @@ export async function updateTaskAction(
           status: changes.status as Task['status'],
           progressUpdate: `Task status changed from ${currentTask.status} to ${changes.status}`,
         });
-      } catch (error) {
-        console.error('Error sending progress email:', error);
-      }
+      });
     }
   }
 
   if (assigneeChanged) {
-    if (currentTask.assignee_id) {
-      try {
-        await calculatePerformanceMetrics(currentTask.assignee_id, org.id, false);
-      } catch (error) {
-        console.error('Error updating performance metrics for old assignee:', error);
-      }
-    }
-
     if (changes.assigneeId) {
-      try {
-        await calculatePerformanceMetrics(changes.assigneeId, org.id, false);
-      } catch (error) {
-        console.error('Error updating performance metrics for new assignee:', error);
-      }
-
       const { data: newAssignee } = await db.from('users').select('*').eq('id', changes.assigneeId).maybeSingle();
       const { data: creator } = await db.from('users').select('*').eq('id', currentTask.created_by_id).maybeSingle();
 
       if (newAssignee && creator) {
-        try {
+        runInBackground('task-reassignment-email', async () => {
           await sendTaskAssignmentEmail({
             to: newAssignee.email,
             toName: newAssignee.name,
@@ -770,9 +788,7 @@ export async function updateTaskAction(
             priority: updatedTask.priority || 'MEDIUM',
             status: updatedTask.status,
           });
-        } catch (error) {
-          console.error('Error sending assignment email:', error);
-        }
+        });
       }
     }
   }
@@ -806,11 +822,7 @@ export async function deleteTask(taskId: string): Promise<void> {
 
   if (task.assignee_id) {
     await recalculateTasksCount(task.assignee_id, org.id);
-    try {
-      await calculatePerformanceMetrics(task.assignee_id, org.id, false);
-    } catch (error) {
-      console.error('Error updating performance metrics:', error);
-    }
+    schedulePerformanceMetricsUpdate(task.assignee_id, org.id);
   }
 }
 
@@ -874,7 +886,7 @@ export async function createInvite(
   const invite = mapInvite(inviteRow as DbInvite);
   const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/${invite.token}`;
 
-  try {
+  runInBackground('invite-email', async () => {
     await sendInviteEmail({
       to: email,
       role,
@@ -882,9 +894,7 @@ export async function createInvite(
       organizationName: org.name,
       inviterName: currentUser.name,
     });
-  } catch (error) {
-    console.error('Error sending invite email:', error);
-  }
+  });
 
   return { invite, inviteLink };
 }
@@ -967,10 +977,12 @@ export async function addMemberViaInvite(inviteToken: string, authUserId: string
 
     if (orgRow) {
       const organization = mapOrganization(orgRow as DbOrganization);
-      await sendWelcomeEmail(invite.email, name, organization.name);
+      runInBackground('welcome-email', async () => {
+        await sendWelcomeEmail(invite.email, name, organization.name);
+      });
     }
   } catch (error) {
-    console.error('Error sending welcome email:', error);
+    console.error('Error loading organization for welcome email:', error);
   }
 
   return mapUser(newUser as DbUser);

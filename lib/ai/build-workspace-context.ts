@@ -1,8 +1,9 @@
 import { fetchMembers, fetchTasks } from '@/lib/db/actions';
-import { fetchProjects } from '@/lib/db/project-actions';
+import { fetchProjectById, fetchProjects, type ProjectWithStats } from '@/lib/db/project-actions';
 import { getCurrentOrganization, getCurrentUser } from '@/lib/auth/session';
+import { AI_CONTEXT_MAX_TASKS } from '@/lib/ai/constants';
 import type { Task, User } from '@/lib/db/schema';
-import type { ProjectWithStats } from '@/lib/db/project-actions';
+import type { ProjectDetail } from '@/lib/db/project-actions';
 
 function formatDate(value: Date | string | null | undefined): string {
   if (!value) return '—';
@@ -16,8 +17,16 @@ function memberName(members: User[], id: string | null): string {
   return members.find((m) => m.id === id)?.name ?? 'Unknown';
 }
 
-function projectName(projects: ProjectWithStats[], id: string): string {
+function projectName(projects: Array<{ id: string; name: string }>, id: string): string {
   return projects.find((p) => p.id === id)?.name ?? 'Unknown project';
+}
+
+function projectToWithStats(project: ProjectDetail): ProjectWithStats {
+  return {
+    ...project,
+    taskCounts: project.taskCounts,
+    milestoneProgress: project.milestoneProgress,
+  };
 }
 
 function formatProjects(projects: ProjectWithStats[]): string {
@@ -30,14 +39,23 @@ function formatProjects(projects: ProjectWithStats[]): string {
     .join('\n');
 }
 
-function formatTasks(tasks: Task[], members: User[], projects: ProjectWithStats[]): string {
+function formatTasks(
+  tasks: Task[],
+  members: User[],
+  projects: Array<{ id: string; name: string }>
+): string {
   if (tasks.length === 0) return '  (none)';
-  return tasks
+  const visible = tasks.slice(0, AI_CONTEXT_MAX_TASKS);
+  const lines = visible
     .map(
       (t) =>
         `  - "${t.title}" [id: ${t.id}] | ${t.status} | ${t.priority ?? 'MEDIUM'} priority | assignee: ${memberName(members, t.assigneeId)} | project: ${projectName(projects, t.projectId)} | due: ${formatDate(t.dueDate)}`
     )
     .join('\n');
+  if (tasks.length > AI_CONTEXT_MAX_TASKS) {
+    return `${lines}\n  ... and ${tasks.length - AI_CONTEXT_MAX_TASKS} more tasks (truncated)`;
+  }
+  return lines;
 }
 
 function formatMembers(members: User[]): string {
@@ -54,17 +72,19 @@ function summarizeTasksByStatus(tasks: Task[]): string {
 }
 
 export async function buildWorkspaceContext(projectId?: string): Promise<string> {
-  const [org, currentUser, members, projects, tasks] = await Promise.all([
+  const [org, currentUser, members, tasks, projectOrProjects] = await Promise.all([
     getCurrentOrganization(),
     getCurrentUser(),
     fetchMembers(),
-    fetchProjects(),
     fetchTasks(projectId),
+    projectId ? fetchProjectById(projectId) : fetchProjects(),
   ]);
 
-  const scopedProjects = projectId
-    ? projects.filter((p) => p.id === projectId)
-    : projects;
+  const scopedProjects: ProjectWithStats[] = projectId
+    ? projectOrProjects
+      ? [projectToWithStats(projectOrProjects as ProjectDetail)]
+      : []
+    : (projectOrProjects as ProjectWithStats[]);
 
   const projectSection =
     projectId && scopedProjects.length === 1
@@ -81,7 +101,7 @@ PROJECTS (${scopedProjects.length}${projectId ? ' — filtered to current projec
 ${formatProjects(scopedProjects)}
 
 TASKS (${tasks.length}${projectId ? ' — in current project' : ' — org-wide'}):
-${formatTasks(tasks, members, projects)}
+${formatTasks(tasks, members, scopedProjects)}
 
 TASK STATUS SUMMARY: ${summarizeTasksByStatus(tasks)}`;
 }

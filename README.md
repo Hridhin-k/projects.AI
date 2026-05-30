@@ -8,7 +8,7 @@ Project management from planning through deployment. Built with **Next.js**, **S
 - Per-project Kanban boards, milestones, and deployment tracking
 - Team roles (owner, admin, manager, employee) with invites
 - AI task assistant and workload-aware assignment
-- Email notifications via Brevo
+- Email notifications via Resend
 
 ## Quick start
 
@@ -37,7 +37,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | Auth | Supabase Auth |
 | Database | Supabase Postgres |
 | AI | Google Gemini |
-| Email | Brevo |
+| Email | Resend |
 
 ## Project structure
 
@@ -55,4 +55,4 @@ supabase/         # Migrations and CLI config
 ## Documentation
 
 - [SUPABASE_SETUP.md](SUPABASE_SETUP.md) — database and auth setup
-- [BREVO_EMAIL_SETUP.md](BREVO_EMAIL_SETUP.md) — transactional email (optional)
+- [RESEND_EMAIL_SETUP.md](RESEND_EMAIL_SETUP.md) — transactional email (optional)

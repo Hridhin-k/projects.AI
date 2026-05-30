@@ -28,7 +28,7 @@ At [supabase.com/dashboard](https://supabase.com/dashboard), create a project an
 cp env.template .env.local
 ```
 
-Fill in the three Supabase variables plus your existing `GEMINI_API_KEY` and Brevo keys.
+Fill in the three Supabase variables plus your existing `GEMINI_API_KEY` and Resend keys.
 
 **This project** (`ycriacrqtyulesbjbxel`):
 
@@ -105,7 +105,7 @@ If the browser shows **500** from `supabase.co/auth/v1/signup` and the response 
 { "code": "unexpected_failure", "message": "Error sending confirmation email" }
 ```
 
-signup is blocked because **Supabase could not send the confirm-email**. This is configured in the Supabase Dashboard, not in this repo. App env vars (`BREVO_*` or future `RESEND_*`) do **not** send Auth signup emails — only **Supabase → SMTP** (e.g. Resend) does.
+signup is blocked because **Supabase could not send the confirm-email**. This is configured in the Supabase Dashboard, not in this repo. App env vars (`RESEND_*`) do **not** send Auth signup emails — only **Supabase → SMTP** (Resend) does.
 
 **Fastest fix (local dev):**
 
@@ -119,7 +119,7 @@ signup is blocked because **Supabase could not send the confirm-email**. This is
 
 #### Configure Resend for Supabase Auth
 
-Signup, password reset, and magic-link emails are sent by **Supabase Auth**, not by this Next.js app. Your `BREVO_*` keys in `.env.local` only power **team invite** emails in `lib/email/`. To fix `Error sending confirmation email`, wire Resend into Supabase:
+Signup, password reset, and magic-link emails are sent by **Supabase Auth**, not by this Next.js app. Your `RESEND_*` keys in `.env.local` only power **in-app** emails in `lib/email/resend.ts`. To fix `Error sending confirmation email`, wire Resend into Supabase:
 
 1. **Resend** ([resend.com](https://resend.com))
    - Create an API key (`re_…`).
@@ -150,12 +150,11 @@ Signup, password reset, and magic-link emails are sent by **Supabase Auth**, not
 
 **Still 500 after SMTP?** Almost always an unverified sender domain or wrong API key. Double-check sender email matches a verified domain in Resend.
 
-## What changed from Clerk
+## Auth model
 
-- Removed `@clerk/nextjs`, Clerk webhooks, and `clerk_id` columns
 - Users link to Supabase via `users.auth_user_id` → `auth.users.id`
-- Organizations no longer use Clerk org IDs
 - Sign-in/sign-up are custom pages using Supabase Auth
+- Organizations are stored in Postgres (no third-party org provider)
 
 ## Invites
 

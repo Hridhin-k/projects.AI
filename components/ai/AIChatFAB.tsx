@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import AIChatBox from "./AIChatBox";
+import dynamic from "next/dynamic";
+
+const AIChatBox = dynamic(() => import("./AIChatBox"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-1 items-center justify-center text-gray-400 text-sm">
+      Loading assistant…
+    </div>
+  ),
+});
 
 interface AIChatFABProps {
   projectId?: string;

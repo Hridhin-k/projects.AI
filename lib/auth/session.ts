@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
-import { loadUserProfile } from '@/lib/auth/profile-cache';
+import { provisionUserProfile } from '@/lib/auth/provision';
 import { isSuperAdmin } from '@/lib/auth/platform';
 import type { Organization, User } from '@/lib/db/schema';
 
@@ -31,7 +31,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const email = authUser.email || '';
 
   try {
-    const { user, organization } = await loadUserProfile(authUser.id, email, name);
+    const { user, organization } = await provisionUserProfile(authUser.id, email, name);
     return { ...user, organization };
   } catch (e) {
     if (e instanceof Error && e.message === 'INVITE_PENDING') {
@@ -55,9 +55,4 @@ export async function requireAuth(): Promise<string> {
 export async function requireOrganization(): Promise<Organization> {
   const user = await requireOrgMember();
   return user.organization!;
-}
-
-export async function getAuthUserId(): Promise<string | null> {
-  const user = await getCurrentUser();
-  return user?.authUserId ?? null;
 }

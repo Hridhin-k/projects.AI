@@ -1,4 +1,4 @@
--- Projects.AI: Supabase schema (replaces Clerk + standalone Postgres)
+-- Projects.AI: Supabase schema
 -- Run via Supabase CLI or Dashboard SQL editor
 
 -- Extensions
